@@ -5,13 +5,14 @@ import pandas as pd
 from urllib.parse import urlparse, urljoin
 import time
 import json 
+import base64
 
 # Importaciones de la API de Google Gemini (Asegúrate de que 'google-genai' esté en requirements.txt)
 from google import genai
 from google.genai import types
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="SEO Audit Tool con IA", layout="wide")
+st.set_page_config(page_title="SEO & pSEO HERRAMIENTAS - ISRAEL", layout="wide")
 
 
 # --- CONFIGURACIÓN DE AUTENTICACIÓN ---
@@ -21,43 +22,118 @@ ADMIN_PASS = "Creativos.2025//"
 # Inicializar el estado de autenticación
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
+if 'current_page' not in st.session_state:
+    st.session_state['current_page'] = "Crawler & Auditoría" # Estado para la navegación superior
 
-def login_form():
-    """Muestra el formulario de login en la barra lateral con mejor diseño."""
-    
-    # Aplicar estilos CSS para mejorar el look del sidebar y el formulario
+
+# --- ESTILOS CSS GENERALES ---
+# NOTA: Usamos CSS para centrar el login y mejorar la apariencia general.
+def apply_custom_css():
     st.markdown("""
         <style>
-        /* Estilo para el contenedor del formulario */
-        .stForm {
-            padding: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            background-color: rgba(0, 0, 0, 0.1);
+        /* Estilos Generales */
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Ocultar Streamlit Menu y Footer */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+
+        /* Contenedor principal para centrar el login */
+        .centered-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* Ocupa toda la altura del viewport */
+            flex-direction: column;
         }
-        /* Título del formulario */
-        .stSidebar h2 {
-            color: #4CAF50;
+
+        /* Card de Login Estilizada */
+        .login-card {
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            background: #ffffff; /* Fondo blanco para destacar */
+            width: 100%;
+            max-width: 400px; /* Ancho fijo para el formulario */
             text-align: center;
-            margin-bottom: 20px;
         }
-        /* Botón de acceso con color verde de éxito */
+
+        /* Botón de Acceso */
         .stButton>button {
             width: 100%;
-            background-color: #4CAF50;
-            color: white;
+            margin-top: 15px;
+            background-color: #4CAF50 !important;
+            color: white !important;
+            border: none;
             border-radius: 8px;
             font-weight: bold;
+            height: 40px;
+            transition: background-color 0.3s;
         }
         .stButton>button:hover {
-            background-color: #45a049;
+            background-color: #45a049 !important;
         }
+        
+        /* Estilos para las Pestañas (st.tabs) */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 15px;
+            justify-content: center; /* Centrar las pestañas */
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            white-space: nowrap;
+            border-radius: 8px 8px 0 0;
+            padding: 10px 20px;
+            background-color: #f0f0f0; /* Fondo de pestaña inactiva */
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #4CAF50 !important; /* Color de pestaña activa */
+            color: white !important;
+            border-bottom: 3px solid #4CAF50;
+        }
+
+        /* Títulos de la app */
+        h1 { color: #333333; }
+        h2 { border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
+        
+        /* Dataframes */
+        .st-emotion-cache-1mnn93c { border-radius: 8px; }
+
         </style>
     """, unsafe_allow_html=True)
+
+# Función para el logo (opcional, si quieres usar un SVG o imagen base64)
+def get_svg_logo(color="#4CAF50"):
+    svg = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-spider">
+        <path d="M10 9a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/>
+        <path d="M12 11v6"/>
+        <path d="M8 2v1c0 4.37-3.6 7.9-7.9 7.9"/>
+        <path d="M16 2v1c0 4.37 3.6 7.9 7.9 7.9"/>
+        <path d="M19.4 14.5c.34-1.11.59-2.29.5-3.5"/>
+        <path d="M4.6 14.5c-.34-1.11-.59-2.29-.5-3.5"/>
+        <path d="M8.5 22c.39-1.57 2.07-2.92 4-3 1.93-.08 3.61 1.33 4 3"/>
+    </svg>
+    """
+    return svg
+
+def login_form():
+    """Muestra el formulario de login centrado."""
     
-    st.sidebar.title("Login de Acceso 🔑")
-    with st.sidebar.form("login_form"):
-        st.subheader("Ingreso de Credenciales")
+    apply_custom_css()
+    
+    st.markdown('<div class="centered-container">', unsafe_allow_html=True)
+    
+    st.markdown(f"""
+        <div class="login-card">
+            {get_svg_logo("#4CAF50")}
+            <h2>Acceso a Herramienta SEO</h2>
+            <p style="color: #666; margin-bottom: 20px;">Por favor, introduce tus credenciales para continuar.</p>
+    """, unsafe_allow_html=True)
+
+    with st.form("login_form", clear_on_submit=False):
         username = st.text_input("Usuario", key="user_input")
         password = st.text_input("Clave", type="password", key="pass_input")
         submitted = st.form_submit_button("Acceder")
@@ -66,28 +142,31 @@ def login_form():
             if username == ADMIN_USER and password == ADMIN_PASS:
                 st.session_state['authenticated'] = True
                 st.success("Acceso concedido. Recargando aplicación...")
-                # CORRECCIÓN DE ERROR: Cambiamos st.experimental_rerun() por st.rerun()
                 st.rerun() 
             else:
                 st.error("Usuario o clave incorrecta.")
 
+    st.markdown('</div></div>', unsafe_allow_html=True)
+    
 # Bloquea la aplicación principal si no está autenticado
 if not st.session_state['authenticated']:
     login_form()
     st.stop()
     
+# Si está autenticado, aplicamos estilos y el código continúa.
+apply_custom_css()
+
 # --- INICIALIZACIÓN Y GESTIÓN DE LA CLAVE DE API ---
 client = None
 try:
-    if st.secrets:
-        GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
-        client = genai.Client(api_key=GEMINI_KEY)
-    else:
-        st.warning("Advertencia: No se encontraron secretos. La función de IA no funcionará sin la clave 'GEMINI_API_KEY'.")
+    # Intenta obtener la clave de secrets.toml
+    GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
+    client = genai.Client(api_key=GEMINI_KEY)
 except KeyError:
-    st.error("Error de Configuración: La clave 'GEMINI_API_KEY' no se encuentra en el archivo .streamlit/secrets.toml.")
+    # Si la clave no está, avisa que la IA no funcionará
+    st.sidebar.error("Error: 'GEMINI_API_KEY' no configurada. Las funciones de IA no están disponibles.")
 except Exception as e:
-    st.error(f"Error al inicializar la API de Gemini: {e}")
+    st.sidebar.error(f"Error al inicializar la API de Gemini: {e}")
 
 # --- FUNCIONES DE LA IA (COMPARTIDAS) ---
 
@@ -187,7 +266,7 @@ def generate_content_template(topic):
     return call_gemini_with_json(prompt, schema)
 
 
-# --- FUNCIONES DEL CRAWLER (SIN CAMBIOS) ---
+# --- FUNCIONES DEL CRAWLER ---
 
 def check_robots_txt(base_url):
     """Verifica la existencia y el estado de robots.txt."""
@@ -303,15 +382,13 @@ def simple_crawler(start_url, max_pages=10):
 
 def render_seo_audit_page():
     """Renderiza la página del Crawler y Auditoría SEO (funcionalidad existente)."""
-    st.title("🕷️ Herramienta de Auditoría y Extracción SEO (Impulsada por IA)")
-    st.markdown("""
-    Introduce la URL base y el número máximo de páginas. La IA de Gemini sugerirá optimizaciones de Título y Meta Descripción.
-    """)
+    st.subheader("Herramienta de Auditoría y Extracción Web")
+    st.info("Utiliza Gemini para sugerir optimizaciones de Título y Meta Descripción de cada página rastreada.")
     
     url_input = st.text_input("Introduce la URL de la Home (ej: https://ejemplo.com)", "")
     max_pages_slider = st.slider("¿Cuántas páginas quieres analizar como máximo?", 5, 100, 20)
 
-    if st.button("🚀 Iniciar Auditoría (Crawler + IA)"):
+    if st.button("🚀 Iniciar Auditoría (Crawler + IA)", use_container_width=True):
         if not url_input.startswith(('http://', 'https://')):
             st.error("Por favor introduce una URL que empiece con http:// o https://")
         else:
@@ -346,28 +423,29 @@ def render_seo_audit_page():
                 data=csv,
                 file_name='seo_audit_report_gemini.csv',
                 mime='text/csv',
+                use_container_width=True
             )
 
 def render_pseo_tool_page():
     """Renderiza la nueva página de SEO Programático."""
-    st.title("💡 pSEO - Generación de Contenido Programático con IA")
-    st.markdown("Utiliza la IA para generar una base de datos de variaciones de *keywords* y estructuras de contenido para tus páginas de pSEO.")
+    st.subheader("Generación de Contenido Programático con IA")
+    st.info("Utiliza la IA para generar una base de datos de variaciones de *keywords* y estructuras de contenido para tus páginas de pSEO.")
 
     tab1, tab2 = st.tabs(["1. Generar Variaciones de Keywords", "2. Generar Estructura de Contenido"])
 
     with tab1:
-        st.subheader("Generador de Temas Programáticos")
-        primary_keyword = st.text_input("Keyword Principal (Ej: Cursos de programación)", key="pseo_kw")
-        num_variations = st.slider("Número de variaciones a generar", 3, 20, 10, key="pseo_num")
+        st.markdown("### Generador de Temas Programáticos")
+        primary_keyword = st.text_input("Keyword Principal (Ej: Cursos de programación, Mejores teclados)", key="pseo_kw")
+        num_variations = st.slider("Número de variaciones a generar", 3, 30, 10, key="pseo_num")
         
-        if st.button("Generar Variaciones y Slugs", key="btn_kw_gen"):
+        if st.button("Generar Variaciones y Slugs", key="btn_kw_gen", use_container_width=True):
             if primary_keyword and client:
                 with st.spinner(f"Generando {num_variations} variaciones para '{primary_keyword}'..."):
                     variations_list = generate_pseo_keywords(primary_keyword, num_variations)
                     
                     if variations_list:
                         df_vars = pd.DataFrame(variations_list)
-                        st.success("¡Variaciones generadas con éxito!")
+                        st.success("¡Variaciones generadas con éxito! Usa esta data para tu hoja de cálculo pSEO.")
                         st.dataframe(df_vars, use_container_width=True)
                         
                         # Opción de descarga
@@ -377,6 +455,7 @@ def render_pseo_tool_page():
                             data=csv_vars,
                             file_name='pseo_variaciones.csv',
                             mime='text/csv',
+                            use_container_width=True
                         )
                     else:
                         st.warning("No se pudieron generar variaciones. Verifica la clave de API.")
@@ -386,28 +465,33 @@ def render_pseo_tool_page():
                 st.warning("Por favor, introduce un Keyword Principal.")
 
     with tab2:
-        st.subheader("Generador de Estructura de Contenido (Outline)")
-        topic_input = st.text_input("Tema específico (Ej: Mejores teclados mecánicos para gaming)", key="pseo_template_topic")
+        st.markdown("### Generador de Estructura de Contenido (Outline)")
+        topic_input = st.text_input("Tema específico para la plantilla (Ej: El mejor software de contabilidad para PYMES)", key="pseo_template_topic")
         
-        if st.button("Generar Template de Contenido", key="btn_template_gen"):
+        if st.button("Generar Template de Contenido", key="btn_template_gen", use_container_width=True):
             if topic_input and client:
                 with st.spinner(f"Creando la estructura de contenido para '{topic_input}'..."):
                     template = generate_content_template(topic_input)
                     
                     if template:
-                        st.success("¡Estructura de contenido generada!")
+                        st.success("¡Estructura de contenido generada! Utiliza este *outline* como plantilla para tus páginas programáticas.")
                         
-                        st.markdown("**1. Título SEO Propuesto:**")
-                        st.code(template.get('title', 'N/A'))
+                        col_title, col_meta = st.columns(2)
                         
-                        st.markdown("**2. Meta Descripción Propuesta:**")
-                        st.code(template.get('meta_description', 'N/A'))
+                        with col_title:
+                            st.markdown("**1. Título SEO Propuesto:** (Máx. 60 caracteres)")
+                            st.code(template.get('title', 'N/A'))
+                        
+                        with col_meta:
+                            st.markdown("**2. Meta Descripción Propuesta:** (Máx. 150 caracteres)")
+                            st.code(template.get('meta_description', 'N/A'))
                         
                         st.markdown("**3. Outline (Estructura en Markdown):**")
-                        st.code(template.get('outline', 'N/A'), language="markdown")
+                        st.markdown("Copia y pega este código Markdown en tu editor.")
+                        st.code(template.get('outline', 'N/A'), language="markdown", height=400)
                         
                         st.markdown("---")
-                        st.markdown("**Previsualización del Outline (Markdown):**")
+                        st.markdown("### Previsualización de la Estructura")
                         st.markdown(template.get('outline', 'N/A'))
                         
                     else:
@@ -417,18 +501,42 @@ def render_pseo_tool_page():
             else:
                 st.warning("Por favor, introduce un tema específico.")
 
-# --- LÓGICA PRINCIPAL DE LA APLICACIÓN ---
+# --- LÓGICA PRINCIPAL DE LA APLICACIÓN (AUTENTICADA) ---
 
-# Navegación en la barra lateral
-page = st.sidebar.radio("Selecciona la Herramienta", ["Crawler & Auditoría", "pSEO - Contenido Programático"], index=0)
+st.sidebar.markdown(f"""
+    <div style='text-align: center; padding-top: 10px; padding-bottom: 20px;'>
+        {get_svg_logo("#4CAF50")}
+        <h3 style='margin-top: 5px; color: #4CAF50;'>SEO AI Suite</h3>
+        <p style='font-size: 0.8em; color: #777;'>Bienvenido, {ADMIN_USER}</p>
+    </div>
+    <div style='text-align: center;'>
+        <form method='post'>
+            <button type='submit' name='logout' style='
+                background-color: #f44336; 
+                color: white; 
+                border: none; 
+                padding: 8px 15px; 
+                border-radius: 6px; 
+                cursor: pointer;
+                font-weight: bold;
+            '>Cerrar Sesión</button>
+        </form>
+    </div>
+""", unsafe_allow_html=True)
 
-if page == "Crawler & Auditoría":
-    render_seo_audit_page()
-elif page == "pSEO - Contenido Programático":
-    render_pseo_tool_page()
-
-# Botón de cerrar sesión en la barra lateral
-st.sidebar.markdown("---")
-if st.sidebar.button("Cerrar Sesión", key="logout_btn_main"):
+# Lógica de cierre de sesión
+if st.sidebar.button("Forzar Cerrar Sesión", key="logout_btn_main"): # Botón de respaldo
     st.session_state['authenticated'] = False
-    st.rerun() # CORRECCIÓN DE ERROR
+    st.rerun()
+
+# CONTENIDO PRINCIPAL CON TABS
+st.title("🤖 SEO AI Suite - Herramientas Programáticas y de Auditoría")
+
+# Usar st.tabs para la navegación superior (como solicitaste)
+tab_audit, tab_pseo = st.tabs(["📊 Crawler & Auditoría SEO", "💡 pSEO - Programmatic SEO"])
+
+with tab_audit:
+    render_seo_audit_page()
+
+with tab_pseo:
+    render_pseo_tool_page()
