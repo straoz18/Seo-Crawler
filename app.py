@@ -83,10 +83,44 @@ def apply_custom_css():
             border-radius: 8px;
         }
         
-        /* --- SIDEBAR Y NAVEGACIÓN (SOPORTE DARK MODE) --- */
+        /* --- SIDEBAR Y NAVEGACIÓN --- */
         /* Estilos generales de la sidebar */
         .st-emotion-cache-1ldf153 {
             background-color: #F8FAFC; /* Fondo muy claro para la sidebar (Light Mode) */
+        }
+        
+        /* Título del logo en la sidebar (Light Mode) */
+        .sidebar-header {
+            color: #1E3A8A; /* Azul Oscuro en Light Mode */
+            font-weight: 700;
+        }
+        /* SVG del logo en la sidebar (Light Mode) */
+        .sidebar-logo-svg path {
+            stroke: #1E3A8A; /* Azul Oscuro en Light Mode */
+        }
+
+        /* --- LOGIN FORM STYLES (Centrado y Moderno) --- */
+        .centered-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 15vh; 
+            flex-direction: column;
+            align-items: center; 
+        }
+
+        .login-card {
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            background: #ffffff !important; /* Fondo blanco por defecto (Light Mode) */
+            width: 100%;
+            max-width: 400px; 
+            text-align: center;
+        }
+        
+        /* Forzar texto de la tarjeta y etiquetas oscuras en Light Mode */
+        .login-card h2, .login-card p, .login-card label p {
+            color: #1E3A8A !important; /* Azul Oscuro */
         }
         
         /* --- CONFIGURACIÓN PARA DARK MODE --- */
@@ -108,55 +142,29 @@ def apply_custom_css():
             .sidebar-logo-svg path {
                 stroke: #FFFFFF !important; /* SVG blanco en Dark Mode */
             }
-            /* Etiquetas y texto del Login en Dark Mode */
-            .login-card h2, .login-card p, .login-card label p, .login-card span {
-                color: #FFFFFF !important; 
-            }
+            
+            /* >>>>>>>>>>>>>>>>> CORRECCIÓN CLAVE: FONDO DE LA TARJETA EN MODO OSCURO <<<<<<<<<<<<<<<<< */
             .login-card {
-                background: #1F2937 !important; /* Fondo de tarjeta más oscuro */
+                background: #1F2937 !important; /* Fondo de tarjeta más oscuro para que no sea blanco */
                 box-shadow: 0 8px 30px rgba(255, 255, 255, 0.1);
+            }
+            
+            /* Asegurar que las etiquetas y textos dentro del login-card sean blancos */
+            .login-card h2, 
+            .login-card p, 
+            .login-card label p,
+            .login-card span {
+                color: #FFFFFF !important; 
             }
             
         }
 
-        /* Título del logo en la sidebar (Light Mode) */
-        .sidebar-header {
-            color: #1E3A8A; /* Azul Oscuro en Light Mode */
-            font-weight: 700;
-        }
-        /* SVG del logo en la sidebar (Light Mode) */
-        .sidebar-logo-svg path {
-            stroke: #1E3A8A; /* Azul Oscuro en Light Mode */
-        }
-        
-        /* --- LOGIN FORM STYLES (Centrado y Moderno) --- */
-        .centered-container {
-            display: flex;
-            justify-content: center;
-            margin-top: 15vh; 
-            flex-direction: column;
-            align-items: center; 
-        }
-
-        .login-card {
-            padding: 30px 40px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-            background: #ffffff !important; 
-            width: 100%;
-            max-width: 400px; 
-            text-align: center;
-        }
-        
-        /* Forzar texto de la tarjeta y etiquetas oscuras en Light Mode */
-        .login-card h2, .login-card p, .login-card label p {
-            color: #1E3A8A !important; /* Azul Oscuro */
-        }
         </style>
     """, unsafe_allow_html=True)
 
 # Función para el logo (SVG con clase CSS para color dinámico)
 def get_svg_logo():
+    """Retorna el SVG del logo con clases CSS para el modo oscuro/claro."""
     # El color del stroke será definido por la clase CSS 'sidebar-logo-svg' y el media query.
     svg = f"""
     <div class="sidebar-logo-svg">
@@ -179,7 +187,7 @@ def login_form():
     apply_custom_css()
     
     # Nuevo enfoque para el login: Usar contenedores de Streamlit que encapsulen los divs HTML.
-    # Usaremos el contenedor centrado de Streamlit para forzar el CSS 'login-card'.
+    # Usaremos el contenedor centrado de Streamlit para forzar el CSS 'centered-container'.
     centered_container = st.container()
 
     with centered_container:
