@@ -12,7 +12,7 @@ from google import genai
 from google.genai import types
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="SEO & pSEO HERRAMIENTAS - ISRAEL", layout="wide")
+st.set_page_config(page_title="SEO & pSEO AI Tool", layout="wide")
 
 
 # --- CONFIGURACIÓN DE AUTENTICACIÓN ---
@@ -26,8 +26,7 @@ if 'current_page' not in st.session_state:
     st.session_state['current_page'] = "Crawler & Auditoría" # Estado para la navegación superior
 
 
-# --- ESTILOS CSS GENERALES ---
-# NOTA: Usamos CSS para centrar el login y mejorar la apariencia general.
+# --- ESTILOS CSS GENERALES (CORREGIDOS) ---
 def apply_custom_css():
     st.markdown("""
         <style>
@@ -38,25 +37,36 @@ def apply_custom_css():
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
 
-        /* Contenedor principal para centrar el login */
+        /* CORRECCIÓN 1: Contenedor principal para centrar el login */
         .centered-container {
             display: flex;
             justify-content: center;
-            align-items: center;
-            height: 100vh; /* Ocupa toda la altura del viewport */
+            /* Usamos un margen superior fijo para que no se pegue arriba, en lugar de 100vh */
+            margin-top: 15vh; 
             flex-direction: column;
+            align-items: center; 
         }
 
-        /* Card de Login Estilizada */
+        /* CORRECCIÓN 1: Card de Login Estilizada (Forzar colores para Dark Mode) */
         .login-card {
             padding: 30px 40px;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            background: #ffffff; /* Fondo blanco para destacar */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            background: #ffffff !important; /* Fondo blanco forzado */
+            color: #333333 !important; /* Texto oscuro forzado */
             width: 100%;
-            max-width: 400px; /* Ancho fijo para el formulario */
+            max-width: 400px; 
             text-align: center;
         }
+
+        /* CORRECCIÓN 1: Forzar texto de la tarjeta y etiquetas oscuras */
+        .login-card h2, .login-card p {
+            color: #333333 !important; 
+        }
+        .login-card label p {
+            color: #333333 !important; 
+        }
+
 
         /* Botón de Acceso */
         .stButton>button {
@@ -79,23 +89,28 @@ def apply_custom_css():
             gap: 15px;
             justify-content: center; /* Centrar las pestañas */
         }
+        
+        /* CORRECCIÓN 2: Pestaña Inactiva */
         .stTabs [data-baseweb="tab"] {
             height: 50px;
             white-space: nowrap;
             border-radius: 8px 8px 0 0;
             padding: 10px 20px;
-            background-color: #f0f0f0; /* Fondo de pestaña inactiva */
+            background-color: #f0f0f0 !important; /* Fondo de pestaña inactiva */
+            color: #333333 !important; /* ¡IMPORTANTE! Texto oscuro para asegurar la legibilidad */
             font-size: 1.1em;
             font-weight: 500;
         }
+        
+        /* Pestaña Activa */
         .stTabs [aria-selected="true"] {
             background-color: #4CAF50 !important; /* Color de pestaña activa */
-            color: white !important;
+            color: white !important; /* Texto blanco en pestaña activa */
             border-bottom: 3px solid #4CAF50;
         }
 
         /* Títulos de la app */
-        h1 { color: #333333; }
+        h1 { color: #4CAF50; }
         h2 { border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
         
         /* Dataframes */
@@ -126,6 +141,7 @@ def login_form():
     
     st.markdown('<div class="centered-container">', unsafe_allow_html=True)
     
+    # Nota: El contenido dentro de st.markdown('...') debe ser forzado a #333333
     st.markdown(f"""
         <div class="login-card">
             {get_svg_logo("#4CAF50")}
@@ -134,6 +150,8 @@ def login_form():
     """, unsafe_allow_html=True)
 
     with st.form("login_form", clear_on_submit=False):
+        # NOTA: Los inputs de Streamlit heredan el estilo de fondo del tema, lo que puede 
+        # hacer que no se vean bien, pero el texto sí es forzado por el CSS de la tarjeta.
         username = st.text_input("Usuario", key="user_input")
         password = st.text_input("Clave", type="password", key="pass_input")
         submitted = st.form_submit_button("Acceder")
@@ -142,6 +160,7 @@ def login_form():
             if username == ADMIN_USER and password == ADMIN_PASS:
                 st.session_state['authenticated'] = True
                 st.success("Acceso concedido. Recargando aplicación...")
+                # Usar st.rerun() para evitar el error de AttributeError: 'streamlit._delta_generator.DeltaGenerator' object has no attribute 'experimental_rerun'
                 st.rerun() 
             else:
                 st.error("Usuario o clave incorrecta.")
