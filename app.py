@@ -191,7 +191,8 @@ apply_custom_css()
 client = None
 try:
     # Intenta obtener la clave de secrets.toml
-    GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
+    # NOTA: En este entorno de Canvas, esta variable es proporcionada automáticamente.
+    GEMINI_KEY = st.secrets.get("GEMINI_API_KEY", "")
     client = genai.Client(api_key=GEMINI_KEY)
 except KeyError:
     # Si la clave no está, avisa que la IA no funcionará
@@ -212,6 +213,7 @@ def call_gemini_with_json(prompt, schema, use_search=False):
     
     config_params = {}
     if not use_search:
+        # Configuración para forzar la salida JSON (structured output)
         config_params['response_mime_type'] = "application/json"
         config_params['response_schema'] = schema
 
@@ -698,14 +700,12 @@ def render_pseo_tool_page():
                             st.success("¡Análisis Competitivo y Sugerencias de Keywords completado!")
 
                             # Usamos regex para extraer las secciones de texto antes de la tabla.
-                            # Extraemos el resumen de nicho
                             niche_match = re.search(r'\*\*RESUMEN DE NICHO:\*\*(.*?)(?=\*\*INSIGHTS COMPETITIVOS:\*\*|\Z)', analysis_markdown, re.DOTALL)
                             niche_summary = niche_match.group(1).strip() if niche_match else "N/A"
                             if niche_match:
                                 st.subheader("1. Resumen de Nicho y Propuesta de Valor")
                                 st.markdown(niche_summary)
 
-                            # Extraemos los insights competitivos
                             insights_match = re.search(r'\*\*INSIGHTS COMPETITIVOS:\*\*(.*?)(?=\*\*KEYWORDS DE OPORTUNIDAD:\*\*|\Z)', analysis_markdown, re.DOTALL)
                             competitive_insights = insights_match.group(1).strip() if insights_match else "N/A"
                             if insights_match:
@@ -713,108 +713,111 @@ def render_pseo_tool_page():
                                 st.markdown(competitive_insights)
 
                             # 2. Keywords Sugeridas (Parseando la tabla)
-                            st.subheader("3. 10 Keywords pSEO de Oportunidad")
-                            
                             df_keywords = parse_markdown_table(analysis_markdown)
-                            st.session_state['keywords_df'] = df_keywords # Guardar en sesión
-                            
+
                             if df_keywords is not None and not df_keywords.empty:
+                                st.subheader("3. Keywords de Oportunidad para pSEO")
                                 st.dataframe(df_keywords, use_container_width=True)
-
-                                # 3. Opciones de Descarga
-                                st.subheader("4. Opciones de Descarga")
-                                col_csv_kw, col_pdf_niche = st.columns(2)
-                                
-                                with col_csv_kw:
-                                    csv_keywords = df_keywords.to_csv(index=False).encode('utf-8')
-                                    st.download_button(
-                                        label="💾 Descargar CSV de Keywords",
-                                        data=csv_keywords,
-                                        file_name='pseo_keywords_competitivas.csv',
-                                        mime='text/csv',
-                                        use_container_width=True
-                                    )
-                                
-                                with col_pdf_niche:
-                                    # Preparar contenido para el PDF de Nicho
-                                    pdf_content_list = [
-                                        f"URL Analizada: {target_url}",
-                                        "\n--- Resumen de Nicho y Propuesta de Valor ---\n",
-                                        niche_summary,
-                                        "\n--- Insights Clave de la Competencia ---\n",
-                                        competitive_insights,
-                                        "\n--- Keywords pSEO de Oportunidad ---\n",
-                                        df_keywords.to_markdown(index=False) # Agregar tabla como Markdown
-                                    ]
-
-                                    pdf_data = generate_pdf_report(
-                                        title=f"Análisis de Nicho para: {urlparse(target_url).netloc}",
-                                        content_list=pdf_content_list,
-                                    )
-
-                                    st.download_button(
-                                        label="📄 Descargar reporte PDF",
-                                        data=pdf_data,
-                                        file_name='pseo_niche_analysis.pdf',
-                                        mime='application/octet-stream',
-                                        use_container_width=True
-                                    )
-
+                                # Opción de descarga
+                                csv_niche = df_keywords.to_csv(index=False).encode('utf-8')
+                                st.download_button(
+                                    label="💾 Descargar Keywords (CSV)",
+                                    data=csv_niche,
+                                    file_name='pseo_niche_keywords.csv',
+                                    mime='text/csv',
+                                    use_container_width=True
+                                )
                             else:
-                                st.warning("La IA generó el análisis, pero no se pudo extraer la tabla de keywords. Aquí está la respuesta completa en bruto para revisión:")
-                                st.code(analysis_markdown, language="markdown")
-
+                                st.warning("La IA generó un análisis, pero no se pudo extraer la tabla de Keywords de Oportunidad. Se muestra el texto completo.")
+                                st.markdown("### Resultado Bruto del Análisis de IA")
+                                st.markdown(analysis_markdown)
                         else:
-                            st.warning("No se pudo completar el análisis. Inténtalo con otra URL o verifica la clave de API.")
+                            st.warning("No se pudo completar el análisis. Verifica la clave de API o la conexión a Google Search.")
+                    
             elif not client:
                 st.error("La API de Gemini no está configurada correctamente.")
             else:
-                st.warning("Por favor, introduce una URL para empezar el análisis.")
+                st.warning("Por favor, introduce una URL para analizar.")
+
+        # Lógica para repintar el último análisis si existe (fuera del bloque del botón)
+        if 'niche_analysis_data' in st.session_state and st.session_state.get('pseo_niche_url') and st.session_state['niche_analysis_data']:
+            st.subheader("Último Análisis de Nicho y Keywords")
+            analysis_markdown = st.session_state['niche_analysis_data']
+            
+            # Redraw sections
+            niche_match = re.search(r'\*\*RESUMEN DE NICHO:\*\*(.*?)(?=\*\*INSIGHTS COMPETITIVOS:\*\*|\Z)', analysis_markdown, re.DOTALL)
+            niche_summary = niche_match.group(1).strip() if niche_match else "N/A"
+            if niche_match:
+                st.markdown("### 1. Resumen de Nicho y Propuesta de Valor")
+                st.markdown(niche_summary)
+
+            insights_match = re.search(r'\*\*INSIGHTS COMPETITIVOS:\*\*(.*?)(?=\*\*KEYWORDS DE OPORTUNIDAD:\*\*|\Z)', analysis_markdown, re.DOTALL)
+            competitive_insights = insights_match.group(1).strip() if insights_match else "N/A"
+            if insights_match:
+                st.markdown("### 2. Insights Clave de la Competencia")
+                st.markdown(competitive_insights)
+
+            df_keywords = parse_markdown_table(analysis_markdown)
+            if df_keywords is not None and not df_keywords.empty:
+                st.markdown("### 3. Keywords de Oportunidad para pSEO")
+                st.dataframe(df_keywords, use_container_width=True)
+            else:
+                st.markdown("### Resultado Bruto del Análisis de IA")
+                st.markdown(analysis_markdown)
 
 
-# --- LÓGICA PRINCIPAL DE LA APLICACIÓN (AUTENTICADA) ---
+# --- APLICACIÓN PRINCIPAL Y ENRUTAMIENTO ---
 
-# TÍTULO Y LOGO EN LA BARRA LATERAL
-with st.sidebar:
-    # Bloque HTML para el encabezado y el mensaje de bienvenida
-    # CORREGIDO: Se simplificó el HTML y se usó un único st.markdown para asegurar la renderización.
-    st.markdown(f"""
-        <div style='text-align: center; padding-top: 10px; padding-bottom: 20px; border-bottom: 1px solid #E5E7EB;'>
-            {get_svg_logo("#1E3A8A")}
-            <span class='sidebar-header'>SEO AI Suite</span>
-            <br>
-            <span style='font-size: 0.8em; color: #777;'>Bienvenido, {ADMIN_USER}</span>
+def main_app():
+    """Configura la barra lateral y el enrutamiento de páginas."""
+    
+    # Lista de opciones de navegación con emojis
+    PAGES = {
+        "📊 Crawler & Auditoría SEO": render_seo_audit_page,
+        "💡 Herramientas pSEO (Programático)": render_pseo_tool_page,
+    }
+
+    # --- SIDEBAR: HEADER Y LOGO ---
+    st.sidebar.markdown(f"""
+        <div style="display:flex; align-items:center; margin-bottom: 20px;">
+            {get_svg_logo(color="#1E3A8A")}
+            <span class="sidebar-header" style="margin-left: 10px; font-size: 24px;">SEO AI Tool</span>
         </div>
     """, unsafe_allow_html=True)
     
-    # MENÚ DE NAVEGACIÓN LATERAL
-    st.markdown("### Navegación")
+    # --- SIDEBAR: NAVIGACIÓN ---
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("#### Navegación")
     
-    # Lista de todas las opciones del menú
-    MENU_OPTIONS = [DEFAULT_PAGE, "💡 pSEO - Programmatic SEO"]
-    
-    page_selection = st.radio(
-        "Elige una herramienta",
-        MENU_OPTIONS,
-        # Usar la lista de opciones para encontrar el índice de la página actual
-        index=MENU_OPTIONS.index(st.session_state['current_page']),
-        key="main_menu_radio"
+    # Usar st.radio para la navegación
+    selected_page = st.sidebar.radio(
+        "", 
+        options=list(PAGES.keys()), 
+        index=list(PAGES.keys()).index(st.session_state['current_page']),
+        key="page_selector"
     )
     
-    # Actualizar el estado de sesión al hacer clic
-    st.session_state['current_page'] = page_selection
+    # Actualiza el estado de la página si se cambia
+    st.session_state['current_page'] = selected_page
     
-    # Lógica de cierre de sesión al final de la barra lateral
-    st.markdown("<div style='margin-top: 40px;'></div>", unsafe_allow_html=True) # Espaciador
-    if st.button("Cerrar Sesión", key="logout_btn_main", use_container_width=True): 
+    st.sidebar.markdown("---")
+    
+    # Opción de Logout
+    if st.sidebar.button("🔒 Cerrar Sesión", use_container_width=True):
         st.session_state['authenticated'] = False
+        st.session_state['current_page'] = DEFAULT_PAGE
         st.rerun()
 
-# CONTENIDO PRINCIPAL BASADO EN LA SELECCIÓN DEL MENÚ
-st.title("🤖 SEO AI Suite - Herramientas Programáticas y de Auditoría por Israel Ríos")
+    # --- CONTENIDO PRINCIPAL ---
+    st.title(selected_page)
+    
+    # Llamar a la función de renderizado de la página seleccionada
+    render_func = PAGES[selected_page]
+    render_func()
 
-if st.session_state['current_page'] == DEFAULT_PAGE:
-    render_seo_audit_page()
-
-elif st.session_state['current_page'] == "💡 pSEO - Programmatic SEO":
-    render_pseo_tool_page()
+# --- PUNTO DE ENTRADA ---
+if __name__ == '__main__':
+    # El flujo de autenticación ya está manejado al inicio del script.
+    # Si pasa el 'st.stop()', llama a la app principal.
+    if st.session_state['authenticated']:
+        main_app()
