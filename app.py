@@ -84,7 +84,7 @@ if st.sidebar.button("Cerrar Sesión", key="logout_btn"):
 
 # --- APP PRINCIPAL (SOLO PARA USUARIOS AUTENTICADOS) ---
 
-st.title("🕷️ Herramienta de Auditoría y Extracción SEO (Impulsada por IA)")
+st.title("🕷️ Herramienta de Auditoría y Extracción SEO (Impulsada por IA) - Israel Ríos")
 st.markdown("""
 Introduce la URL base y el número máximo de páginas. La IA de Gemini sugerirá optimizaciones de Título y Meta Descripción.
 """)
