@@ -7,15 +7,12 @@ import time
 import json 
 import base64
 import re 
-from io import BytesIO # Necesario para la generación de PDF
+from io import BytesIO 
 
 # Importaciones de la API de Google Gemini (Asegúrate de que 'google-genai' esté en requirements.txt)
 from google import genai
 from google.genai import types
 
-# Importar FPDF para generar el PDF (usaremos una función interna para evitar dependencias externas)
-# FPDF no está disponible en Streamlit, así que simularemos la generación de un PDF simple.
-# La solución más práctica en Streamlit es usar HTML/Markdown para PDF, pero haremos una simulación con BytesIO para un archivo binario.
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="SEO & pSEO AI Tool", layout="wide")
@@ -29,56 +26,43 @@ ADMIN_PASS = "Creativos.2025//"
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 if 'current_page' not in st.session_state:
-    st.session_state['current_page'] = "Crawler & Auditoría" # Estado para la navegación superior
+    # Usaremos el nombre completo de la página para la navegación lateral
+    st.session_state['current_page'] = "Crawler & Auditoría SEO"
 
 
 # --- ESTILOS CSS GENERALES ---
+# Nueva paleta de colores:
+# Primario (Dark Blue): #1E3A8A
+# Secundario (Cyan): #06B6D4 
+
 def apply_custom_css():
     st.markdown("""
         <style>
-        /* Estilos Generales */
-        body { font-family: 'Inter', sans-serif; }
-        
         /* Ocultar Streamlit Menu y Footer */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
 
-        /* Contenedor principal para centrar el login */
-        .centered-container {
-            display: flex;
-            justify-content: center;
-            /* Usamos un margen superior fijo para que no se pegue arriba, en lugar de 100vh */
-            margin-top: 15vh; 
-            flex-direction: column;
-            align-items: center; 
+        /* --- COLORES Y FUENTES --- */
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Título Principal */
+        h1 { 
+            color: #1E3A8A; /* Azul Oscuro */
+            border-bottom: 2px solid #E5E7EB; 
+            padding-bottom: 5px;
+            margin-bottom: 20px;
+        }
+        
+        /* Subtítulos */
+        h2 { 
+            color: #06B6D4; /* Cian */
+            margin-top: 25px;
+            margin-bottom: 15px;
         }
 
-        /* Card de Login Estilizada (Forzar colores para Dark Mode) */
-        .login-card {
-            padding: 30px 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            background: #ffffff !important; /* Fondo blanco forzado */
-            color: #333333 !important; /* Texto oscuro forzado */
-            width: 100%;
-            max-width: 400px; 
-            text-align: center;
-        }
-
-        /* Forzar texto de la tarjeta y etiquetas oscuras */
-        .login-card h2, .login-card p {
-            color: #333333 !important; 
-        }
-        .login-card label p {
-            color: #333333 !important; 
-        }
-
-
-        /* Botón de Acceso */
-        .stButton>button {
-            width: 100%;
-            margin-top: 15px;
-            background-color: #4CAF50 !important;
+        /* Botones y Elementos Interactivos */
+        .stButton>button, .stDownloadButton>button {
+            background-color: #06B6D4 !important; /* Cian */
             color: white !important;
             border: none;
             border-radius: 8px;
@@ -86,47 +70,65 @@ def apply_custom_css():
             height: 40px;
             transition: background-color 0.3s;
         }
-        .stButton>button:hover {
-            background-color: #45a049 !important;
+        .stButton>button:hover, .stDownloadButton>button:hover {
+            background-color: #0891B2 !important; /* Cian más oscuro */
         }
         
-        /* Estilos para las Pestañas (st.tabs) */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 15px;
-            justify-content: center; /* Centrar las pestañas */
+        /* Contenedores de Alerta (Info, Success, Warning) */
+        .stAlert {
+            border-left: 5px solid #1E3A8A; /* Barra lateral Azul Oscuro */
+            border-radius: 8px;
         }
         
-        /* Pestaña Inactiva */
-        .stTabs [data-baseweb="tab"] {
-            height: 50px;
-            white-space: nowrap;
-            border-radius: 8px 8px 0 0;
-            padding: 10px 20px;
-            background-color: #f0f0f0 !important; /* Fondo de pestaña inactiva */
-            color: #333333 !important; /* ¡IMPORTANTE! Texto oscuro para asegurar la legibilidad */
-            font-size: 1.1em;
-            font-weight: 500;
+        /* --- SIDEBAR Y NAVEGACIÓN --- */
+        /* Estilos generales de la sidebar */
+        .st-emotion-cache-1ldf153 {
+            background-color: #F8FAFC; /* Fondo muy claro para la sidebar */
         }
         
-        /* Pestaña Activa */
-        .stTabs [aria-selected="true"] {
-            background-color: #4CAF50 !important; /* Color de pestaña activa */
-            color: white !important; /* Texto blanco en pestaña activa */
-            border-bottom: 3px solid #4CAF50;
+        /* Título del logo en la sidebar */
+        .sidebar-header {
+            color: #1E3A8A; /* Azul Oscuro */
+            font-weight: 700;
+            margin-bottom: 10px;
         }
 
-        /* Títulos de la app */
-        h1 { color: #4CAF50; }
-        h2 { border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
+        /* Contenedor de la barra de navegación */
+        .st-emotion-cache-170y540 > div > div:nth-child(2) > div {
+             /* El selector para el menu de radio de Streamlit es complejo */
+             /* Le daremos un estilo simple de botones grandes */
+        }
         
-        /* Dataframes */
-        .st-emotion-cache-1mnn93c { border-radius: 8px; }
+        /* --- LOGIN FORM STYLES (Centrado y Moderno) --- */
+        .centered-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 15vh; 
+            flex-direction: column;
+            align-items: center; 
+        }
 
+        .login-card {
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            background: #ffffff !important; 
+            color: #333333 !important; 
+            width: 100%;
+            max-width: 400px; 
+            text-align: center;
+        }
+        
+        /* Forzar texto de la tarjeta y etiquetas oscuras */
+        .login-card h2, .login-card p, .login-card label p {
+            color: #1E3A8A !important; /* Azul Oscuro */
+        }
         </style>
     """, unsafe_allow_html=True)
 
-# Función para el logo (opcional, si quieres usar un SVG o imagen base64)
-def get_svg_logo(color="#4CAF50"):
+# Función para el logo (SVG con el nuevo color)
+def get_svg_logo(color="#06B6D4"):
+    # Misma araña, nuevo color cian
     svg = f"""
     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-spider">
         <path d="M10 9a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/>
@@ -150,9 +152,9 @@ def login_form():
     # Usamos un bloque st.markdown simple para el título y el párrafo dentro de la tarjeta
     st.markdown(f"""
         <div class="login-card">
-            {get_svg_logo("#4CAF50")}
-            <h2>Acceso a Herramienta SEO</h2>
-            <p style="color: #666; margin-bottom: 20px;">Por favor, introduce tus credenciales para continuar.</p>
+            {get_svg_logo("#1E3A8A")}
+            <h2 style="color: #1E3A8A !important;">Acceso a Herramienta SEO</h2>
+            <p style="color: #666; margin-bottom: 20px;">Introduce tus credenciales.</p>
     """, unsafe_allow_html=True)
 
     with st.form("login_form", clear_on_submit=False):
@@ -164,7 +166,6 @@ def login_form():
             if username == ADMIN_USER and password == ADMIN_PASS:
                 st.session_state['authenticated'] = True
                 st.success("Acceso concedido. Recargando aplicación...")
-                # CORRECCIÓN DE ERROR: Usar st.rerun() que es la función correcta
                 st.rerun() 
             else:
                 st.error("Usuario o clave incorrecta.")
@@ -179,6 +180,9 @@ if not st.session_state['authenticated']:
     
 # Si está autenticado, aplicamos estilos y el código continúa.
 apply_custom_css()
+
+
+# --- FUNCIONES DE IA Y CRAWLER (SIN CAMBIOS EN LÓGICA) ---
 
 # --- INICIALIZACIÓN Y GESTIÓN DE LA CLAVE DE API ---
 client = None
@@ -201,7 +205,6 @@ def call_gemini_with_json(prompt, schema, use_search=False):
         return None
     
     # Configuración de herramientas (Google Search)
-    # Nota: Si use_search es True, debemos evitar response_mime_type="application/json"
     tools = [{"google_search": {}}] if use_search else None
     
     config_params = {}
@@ -227,7 +230,8 @@ def call_gemini_with_json(prompt, schema, use_search=False):
             return json.loads(response.text.strip())
         
     except Exception as e:
-        st.error(f"Error al llamar a Gemini. Verifica tu clave de API y el prompt: {e}")
+        # En caso de error de la API, imprimir el error y retornar None
+        st.error(f"Error al llamar a Gemini: {e}")
         return None
 
 # --- FUNCIONES DE IA ESPECÍFICAS DE CRAWLER ---
@@ -483,10 +487,6 @@ def generate_pdf_report(title, content_list, filename="reporte.pdf"):
     """
     Simula la generación de un PDF a partir de una lista de strings de contenido
     y devuelve los bytes para la descarga.
-    
-    NOTA: Se utiliza una simulación simple de PDF en bytes para la compatibilidad 
-    con el entorno Streamlit, ya que las librerías de PDF no siempre están disponibles.
-    En un entorno real, usarías fpdf2 o ReportLab.
     """
     
     # Contenido del PDF simulado
@@ -499,18 +499,8 @@ def generate_pdf_report(title, content_list, filename="reporte.pdf"):
         
     # Crear un buffer de bytes para simular el archivo PDF
     buffer = BytesIO()
-    # En un caso real, aquí iría la lógica de fpdf.
-    # Por ahora, simplemente codificamos el texto como si fuera el PDF.
     buffer.write(pdf_content.encode('utf-8'))
     buffer.seek(0)
-    
-    # NOTA: Para un PDF real, usaríamos algo como esto (asumiendo fpdf2 instalado):
-    # pdf = FPDF()
-    # pdf.add_page()
-    # pdf.set_font("Arial", size=12)
-    # for item in content_list:
-    #     pdf.multi_cell(0, 10, item)
-    # return pdf.output(dest='S').encode('latin-1')
     
     return buffer.getvalue()
 
@@ -518,7 +508,7 @@ def generate_pdf_report(title, content_list, filename="reporte.pdf"):
 # --- DEFINICIÓN DE PÁGINAS ---
 
 def render_seo_audit_page():
-    """Renderiza la página del Crawler y Auditoría SEO (funcionalidad existente)."""
+    """Renderiza la página del Crawler y Auditoría SEO."""
     st.subheader("Herramienta de Auditoría y Extracción Web")
     st.info("Utiliza Gemini para sugerir optimizaciones de Título y Meta Descripción de cada página rastreada.")
     
@@ -588,7 +578,7 @@ def render_seo_audit_page():
                     label="📄 Descargar reporte PDF",
                     data=pdf_data,
                     file_name='seo_audit_report_gemini.pdf',
-                    mime='application/octet-stream', # Usar octet-stream para el PDF simulado
+                    mime='application/octet-stream', 
                     use_container_width=True
                 )
     
@@ -606,7 +596,7 @@ def render_pseo_tool_page():
     st.subheader("Generación de Contenido Programático con IA")
     st.info("Utiliza la IA para generar una base de datos de variaciones de *keywords* y estructuras de contenido para tus páginas de pSEO.")
 
-    # AÑADIR LA NUEVA PESTAÑA (tab3)
+    # Mantenemos las pestañas internas para la funcionalidad dentro de esta página
     tab1, tab2, tab3 = st.tabs([
         "1. Generar Variaciones Manuales", 
         "2. Generar Estructura de Contenido", 
@@ -781,32 +771,40 @@ def render_pseo_tool_page():
 
 # --- LÓGICA PRINCIPAL DE LA APLICACIÓN (AUTENTICADA) ---
 
-st.sidebar.markdown(f"""
-    <div style='text-align: center; padding-top: 10px; padding-bottom: 20px;'>
-        {get_svg_logo("#4CAF50")}
-        <h3 style='margin-top: 5px; color: #4CAF50;'>SEO AI Suite</h3>
-        <p style='font-size: 0.8em; color: #777;'>Bienvenido, {ADMIN_USER}</p>
-    </div>
-    <div style='text-align: center;'>
-        <!-- Nota: Este formulario es más robusto para el logout, pero el botón de Streamlit es más simple y lo usaremos. -->
-    </div>
-""", unsafe_allow_html=True)
+# TÍTULO Y LOGO EN LA BARRA LATERAL
+with st.sidebar:
+    st.markdown(f"""
+        <div style='text-align: center; padding-top: 10px; padding-bottom: 20px; border-bottom: 1px solid #E5E7EB;'>
+            {get_svg_logo("#1E3A8A")}
+            <p class='sidebar-header'>SEO AI Suite</p>
+            <p style='font-size: 0.8em; color: #777;'>Bienvenido, {ADMIN_USER}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # MENÚ DE NAVEGACIÓN LATERAL
+    st.markdown("### Navegación")
+    
+    page_selection = st.radio(
+        "Elige una herramienta",
+        ["📊 Crawler & Auditoría SEO", "💡 pSEO - Programmatic SEO"],
+        index=["📊 Crawler & Auditoría SEO", "💡 pSEO - Programmatic SEO"].index(st.session_state['current_page']),
+        key="main_menu_radio"
+    )
+    
+    # Actualizar el estado de sesión al hacer clic
+    st.session_state['current_page'] = page_selection
+    
+    # Lógica de cierre de sesión al final de la barra lateral
+    st.markdown("<div style='margin-top: 40px;'></div>", unsafe_allow_html=True) # Espaciador
+    if st.button("Cerrar Sesión", key="logout_btn_main", use_container_width=True): 
+        st.session_state['authenticated'] = False
+        st.rerun()
 
-# Lógica de cierre de sesión
-# Usamos el botón de Streamlit y forzamos el st.rerun()
-if st.sidebar.button("Cerrar Sesión", key="logout_btn_main", use_container_width=True): 
-    st.session_state['authenticated'] = False
-    st.rerun()
-
-# CONTENIDO PRINCIPAL CON TABS
-# Título actualizado para incluir a Israel Ríos
+# CONTENIDO PRINCIPAL BASADO EN LA SELECCIÓN DEL MENÚ
 st.title("🤖 SEO AI Suite - Herramientas Programáticas y de Auditoría por Israel Ríos")
 
-# Usar st.tabs para la navegación superior (como solicitaste)
-tab_audit, tab_pseo = st.tabs(["📊 Crawler & Auditoría SEO", "💡 pSEO - Programmatic SEO"])
-
-with tab_audit:
+if st.session_state['current_page'] == "📊 Crawler & Auditoría SEO":
     render_seo_audit_page()
 
-with tab_pseo:
+elif st.session_state['current_page'] == "💡 pSEO - Programmatic SEO":
     render_pseo_tool_page()
