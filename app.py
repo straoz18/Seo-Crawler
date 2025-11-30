@@ -23,18 +23,51 @@ if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
 def login_form():
-    """Muestra el formulario de login en la barra lateral."""
-    st.sidebar.title("Login de Acceso")
+    """Muestra el formulario de login en la barra lateral con mejor diseño."""
+    
+    # Aplicar estilos CSS para mejorar el look del sidebar y el formulario
+    st.markdown("""
+        <style>
+        /* Estilo para el contenedor del formulario */
+        .stForm {
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        /* Título del formulario */
+        .stSidebar h2 {
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        /* Botón de acceso con color verde de éxito */
+        .stButton>button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .stButton>button:hover {
+            background-color: #45a049;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.sidebar.title("Login de Acceso 🔑")
     with st.sidebar.form("login_form"):
-        username = st.text_input("Usuario")
-        password = st.text_input("Clave", type="password")
+        st.subheader("Ingreso de Credenciales")
+        username = st.text_input("Usuario", key="user_input")
+        password = st.text_input("Clave", type="password", key="pass_input")
         submitted = st.form_submit_button("Acceder")
         
         if submitted:
             if username == ADMIN_USER and password == ADMIN_PASS:
                 st.session_state['authenticated'] = True
-                st.success("Acceso concedido. Recarga la página para continuar.")
-                st.experimental_rerun() # Para recargar la aplicación inmediatamente
+                st.success("Acceso concedido. Recargando aplicación...")
+                # CORRECCIÓN DE ERROR: Cambiamos st.experimental_rerun() por st.rerun()
+                st.rerun() 
             else:
                 st.error("Usuario o clave incorrecta.")
 
@@ -45,9 +78,9 @@ if not st.session_state['authenticated']:
     
 # Si está autenticado, el código continúa aquí.
 # Botón de cerrar sesión en la barra lateral
-if st.sidebar.button("Cerrar Sesión"):
+if st.sidebar.button("Cerrar Sesión", key="logout_btn"):
     st.session_state['authenticated'] = False
-    st.experimental_rerun()
+    st.rerun() # CORRECCIÓN DE ERROR
 
 # --- APP PRINCIPAL (SOLO PARA USUARIOS AUTENTICADOS) ---
 
