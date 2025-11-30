@@ -8,7 +8,7 @@ import time
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="SEO Audit Tool Pro", layout="wide")
 
-st.title("🕷️ Herramienta de Auditoría y Extracción SEO")
+st.title("🕷️ Herramienta de Auditoría y Extracción SEO - Israel")
 st.markdown("""
 Esta herramienta extraerá el contenido, validará metadatos y revisará el estado técnico básico.
 """)
