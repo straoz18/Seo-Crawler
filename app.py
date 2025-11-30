@@ -90,6 +90,7 @@ def apply_custom_css():
         }
         
         /* Título del logo en la sidebar */
+        /* CORREGIDO: Usaremos un selector de clase simple dentro del HTML inyectado */
         .sidebar-header {
             color: #1E3A8A; /* Azul Oscuro */
             font-weight: 700;
@@ -778,6 +779,7 @@ def main_app():
     }
 
     # --- SIDEBAR: HEADER Y LOGO ---
+    # CORRECCIÓN: Separamos el título y el SVG para asegurar que Streamlit los renderice correctamente como elementos separados.
     st.sidebar.markdown(f"""
         <div style="display:flex; align-items:center; margin-bottom: 20px;">
             {get_svg_logo(color="#1E3A8A")}
