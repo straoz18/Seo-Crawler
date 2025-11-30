@@ -143,7 +143,7 @@ def apply_custom_css():
                 stroke: #FFFFFF !important; /* SVG blanco en Dark Mode */
             }
             
-            /* >>>>>>>>>>>>>>>>> CORRECCIÓN CLAVE: FONDO DE LA TARJETA EN MODO OSCURO <<<<<<<<<<<<<<<<< */
+            /* CORRECCIÓN CLAVE: FONDO DE LA TARJETA EN MODO OSCURO */
             .login-card {
                 background: #1F2937 !important; /* Fondo de tarjeta más oscuro para que no sea blanco */
                 box-shadow: 0 8px 30px rgba(255, 255, 255, 0.1);
@@ -182,45 +182,39 @@ def get_svg_logo():
     return svg
 
 def login_form():
-    """Muestra el formulario de login centrado, corregido para evitar el error de renderizado de span/div."""
+    """Muestra el formulario de login centrado, con corrección de contenedores."""
     
     apply_custom_css()
     
-    # Nuevo enfoque para el login: Usar contenedores de Streamlit que encapsulen los divs HTML.
-    # Usaremos el contenedor centrado de Streamlit para forzar el CSS 'centered-container'.
-    centered_container = st.container()
-
-    with centered_container:
-        # Esto crea un div centrado gracias al CSS 'centered-container'
-        st.markdown('<div class="centered-container">', unsafe_allow_html=True)
+    # Abrimos el div contenedor centrado
+    st.markdown('<div class="centered-container">', unsafe_allow_html=True)
         
-        # 1. Creamos un slot donde Streamlit renderizará la "tarjeta"
-        with st.container():
-            # Inyectamos solo la clase de la tarjeta para que el contenido de Streamlit se vea afectado
-            st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    # Abrimos el div de la tarjeta de login
+    # Aquí Streamlit renderizará todo el contenido siguiente dentro de este DIV
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
             
-            # 2. Inyectamos el logo y el título con st.markdown, pero dentro de la tarjeta
-            st.markdown(get_svg_logo(), unsafe_allow_html=True)
-            st.markdown("<h2>Acceso a Herramienta SEO</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='color: #666; margin-bottom: 20px;'>Introduce tus credenciales.</p>", unsafe_allow_html=True)
+    # Contenido de la tarjeta
+    st.markdown(get_svg_logo(), unsafe_allow_html=True)
+    st.markdown("<h2>Acceso a Herramienta SEO</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666; margin-bottom: 20px;'>Introduce tus credenciales.</p>", unsafe_allow_html=True)
 
-            # 3. Formulario nativo de Streamlit
-            with st.form("login_form", clear_on_submit=False):
-                username = st.text_input("Usuario", key="user_input")
-                password = st.text_input("Clave", type="password", key="pass_input")
-                submitted = st.form_submit_button("Acceder")
+    # Formulario nativo de Streamlit
+    with st.form("login_form", clear_on_submit=False):
+        username = st.text_input("Usuario", key="user_input")
+        password = st.text_input("Clave", type="password", key="pass_input")
+        submitted = st.form_submit_button("Acceder")
                 
-                if submitted:
-                    if username == ADMIN_USER and password == ADMIN_PASS:
-                        st.session_state['authenticated'] = True
-                        st.success("Acceso concedido. Recargando aplicación...")
-                        st.rerun() 
-                    else:
-                        st.error("Usuario o clave incorrecta.")
+        if submitted:
+            if username == ADMIN_USER and password == ADMIN_PASS:
+                st.session_state['authenticated'] = True
+                st.success("Acceso concedido. Recargando aplicación...")
+                st.rerun() 
+            else:
+                st.error("Usuario o clave incorrecta.")
 
-            # Cierre del div de la tarjeta y del div contenedor centrado
-            st.markdown('</div>', unsafe_allow_html=True) # Cierra login-card
-        st.markdown('</div>', unsafe_allow_html=True) # Cierra centered-container
+    # Cierre del div de la tarjeta y del div contenedor centrado
+    st.markdown('</div>', unsafe_allow_html=True) # Cierra login-card
+    st.markdown('</div>', unsafe_allow_html=True) # Cierra centered-container
 
 
 # Bloquea la aplicación principal si no está autenticado
