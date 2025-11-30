@@ -90,11 +90,9 @@ def apply_custom_css():
         }
         
         /* Título del logo en la sidebar */
-        /* CORREGIDO: Usaremos un selector de clase simple dentro del HTML inyectado */
         .sidebar-header {
             color: #1E3A8A; /* Azul Oscuro */
             font-weight: 700;
-            margin-bottom: 10px;
         }
 
         /* Contenedor de la barra de navegación */
@@ -778,14 +776,25 @@ def main_app():
         "💡 Herramientas pSEO (Programático)": render_pseo_tool_page,
     }
 
-    # --- SIDEBAR: HEADER Y LOGO ---
-    # CORRECCIÓN: Separamos el título y el SVG para asegurar que Streamlit los renderice correctamente como elementos separados.
-    st.sidebar.markdown(f"""
-        <div style="display:flex; align-items:center; margin-bottom: 20px;">
-            {get_svg_logo(color="#1E3A8A")}
-            <span class="sidebar-header" style="margin-left: 10px; font-size: 24px;">SEO AI Tool</span>
-        </div>
-    """, unsafe_allow_html=True)
+    # --- SIDEBAR: HEADER Y LOGO (NUEVA ESTRUCTURA ROBUSTA) ---
+    
+    # 1. Crear dos columnas para alinear logo y texto (más robusto que el DIV flex)
+    col_logo, col_title = st.sidebar.columns([1, 4])
+    
+    # 2. Inyectar el SVG logo (HTML) en la primera columna
+    with col_logo:
+        # Aquí inyectamos solo el SVG.
+        st.markdown(get_svg_logo(color="#1E3A8A"), unsafe_allow_html=True)
+
+    # 3. Inyectar el Título (HTML con estilo CSS) en la segunda columna
+    with col_title:
+        # Usamos la clase CSS 'sidebar-header' y line-height para alineación vertical
+        st.markdown("""
+            <span class="sidebar-header" style="font-size: 24px; line-height: 40px; margin-top: 0;">SEO AI Tool</span>
+        """, unsafe_allow_html=True)
+    
+    # 4. Agregar el separador y espaciado
+    st.sidebar.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
     
     # --- SIDEBAR: NAVIGACIÓN ---
     st.sidebar.markdown("---")
