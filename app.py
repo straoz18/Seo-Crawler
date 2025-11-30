@@ -108,15 +108,7 @@ def apply_custom_css():
             align-items: center; 
         }
 
-        .login-card {
-            padding: 30px 40px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-            background: #ffffff !important; /* Fondo blanco por defecto (Light Mode) */
-            width: 100%;
-            max-width: 400px; 
-            text-align: center;
-        }
+   
         
         /* Forzar texto de la tarjeta y etiquetas oscuras en Light Mode */
         .login-card h2, .login-card p, .login-card label p {
