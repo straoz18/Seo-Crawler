@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from urllib.parse import urlparse, urljoin
 import time
+import json # Necesario para manejar la respuesta JSON de Gemini
 
 # Importaciones de la API de Google Gemini (Asegúrate de que 'google-genai' esté en requirements.txt)
 from google import genai
@@ -12,16 +13,52 @@ from google.genai import types
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="SEO Audit Tool con IA", layout="wide")
 
+
+# --- CONFIGURACIÓN DE AUTENTICACIÓN ---
+ADMIN_USER = "admin"
+ADMIN_PASS = "Creativos.2025//"
+
+# Inicializar el estado de autenticación
+if 'authenticated' not in st.session_state:
+    st.session_state['authenticated'] = False
+
+def login_form():
+    """Muestra el formulario de login en la barra lateral."""
+    st.sidebar.title("Login de Acceso")
+    with st.sidebar.form("login_form"):
+        username = st.text_input("Usuario")
+        password = st.text_input("Clave", type="password")
+        submitted = st.form_submit_button("Acceder")
+        
+        if submitted:
+            if username == ADMIN_USER and password == ADMIN_PASS:
+                st.session_state['authenticated'] = True
+                st.success("Acceso concedido. Recarga la página para continuar.")
+                st.experimental_rerun() # Para recargar la aplicación inmediatamente
+            else:
+                st.error("Usuario o clave incorrecta.")
+
+# Bloquea la aplicación principal si no está autenticado
+if not st.session_state['authenticated']:
+    login_form()
+    st.stop()
+    
+# Si está autenticado, el código continúa aquí.
+# Botón de cerrar sesión en la barra lateral
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state['authenticated'] = False
+    st.experimental_rerun()
+
+# --- APP PRINCIPAL (SOLO PARA USUARIOS AUTENTICADOS) ---
+
 st.title("🕷️ Herramienta de Auditoría y Extracción SEO (Impulsada por IA)")
 st.markdown("""
 Introduce la URL base y el número máximo de páginas. La IA de Gemini sugerirá optimizaciones de Título y Meta Descripción.
 """)
 
 # --- INICIALIZACIÓN Y GESTIÓN DE LA CLAVE DE API ---
-# Intenta obtener la clave de los secretos de Streamlit (el archivo .streamlit/secrets.toml)
 client = None
 try:
-    # Verificamos si Streamlit está en modo 'secrets' (deploy)
     if st.secrets:
         GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
         client = genai.Client(api_key=GEMINI_KEY)
@@ -36,11 +73,11 @@ except Exception as e:
 # --- FUNCIONES DE LA IA ---
 
 def generate_seo_suggestions(title, meta_desc, content_text):
-    """Llama a la API de Gemini para obtener sugerencias de Título y Meta Description."""
+    """Llama a la API de Gemini para obtener sugerencias de Título y Meta Description en formato JSON."""
     if not client:
-        return "IA no disponible (Error en la clave de API)."
+        # Devuelve un diccionario vacío o de error para mantener la consistencia del tipo de retorno
+        return {"title_propuesto": "IA no disponible", "meta_description_propuesta": "Error en la clave de API."}
 
-    # Definimos el prompt de Ingeniería (Instrucción a la IA)
     prompt = f"""
     Eres un experto en SEO con 10 años de experiencia. Tu tarea es analizar los siguientes metadatos y contenido de una página web y proponer optimizaciones que mejoren el Click-Through Rate (CTR) en los resultados de búsqueda.
 
@@ -50,24 +87,37 @@ def generate_seo_suggestions(title, meta_desc, content_text):
     Contenido principal (Fragmento): {content_text[:1200]} 
 
     --- Tarea ---
-    1. Propón 1 Título SEO mejorado (menos de 60 caracteres) con un foco claro en palabras clave y CTR.
-    2. Propón 1 Meta Description optimizada (menos de 150 caracteres) que sea un llamado a la acción persuasivo y que use palabras clave del texto.
+    1. Propón 1 Título SEO mejorado (menos de 60 caracteres).
+    2. Propón 1 Meta Description optimizada (menos de 150 caracteres).
 
-    Formatea tu respuesta de la siguiente manera:
-    TÍTULO PROPUESTO: [Tu nuevo título]
-    META DESCRIPTION PROPUESTA: [Tu nueva descripción]
+    DEBES responder estrictamente en formato JSON que se ajuste al esquema proporcionado. No incluyas ningún texto explicativo fuera del JSON.
     """
     
+    # Define el esquema JSON esperado para forzar la estructura
+    schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "title_propuesto": types.Schema(type=types.Type.STRING, description="El nuevo título SEO mejorado (máx. 60 caracteres)."),
+            "meta_description_propuesta": types.Schema(type=types.Type.STRING, description="La nueva Meta Description optimizada (máx. 150 caracteres)."),
+        }
+    )
+
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash', # Modelo rápido y eficiente para texto
+            model='gemini-2.5-flash',
             contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=schema,
+            )
         )
-        # Aseguramos que solo devolvemos el texto generado
-        return response.text.strip()
+        
+        # El texto de respuesta es una cadena JSON que debemos cargar
+        return json.loads(response.text.strip())
+        
     except Exception as e:
-        # En caso de error de conexión o cuota, devolvemos el error.
-        return f"Error en la API de Gemini: {e}"
+        # Devuelve un diccionario de error en caso de fallo de la API
+        return {"title_propuesto": "Error de procesamiento.", "meta_description_propuesta": f"Error: {e}"}
 
 # --- FUNCIONES DEL CRAWLER ---
 
@@ -91,7 +141,7 @@ def analyze_page(url):
         status_code = response.status_code
 
         if status_code != 200:
-             return {"URL": url, "Status": status_code, "Title": "N/A", "Title Length": 0, "H1": "N/A", "Meta Description": "N/A", "Word Count": 0, "Audit Flags": f"❌ Código de Error {status_code}", "IA Suggestions": "No analizado (Error HTTP)"}
+             return {"URL": url, "Status": status_code, "Title": "N/A", "Title Length": 0, "H1": "N/A", "Meta Description": "N/A", "Word Count": 0, "Audit Flags": f"❌ Código de Error {status_code}", "IA Suggestions": "No analizado (Error HTTP)", "Full Text (Fragment)": "N/A"}
 
         soup = BeautifulSoup(response.content, 'html.parser')
         
@@ -117,9 +167,15 @@ def analyze_page(url):
 
         # Llama a la IA para obtener sugerencias (solo si hay suficiente contenido)
         if len(text_content) > 100:
-            ia_suggestions = generate_seo_suggestions(title, meta_desc_content, text_content)
+            ia_suggestions_dict = generate_seo_suggestions(title, meta_desc_content, text_content)
+            
+            # Formatear el diccionario a una cadena Markdown limpia para el DataFrame
+            formatted_suggestions = f"""
+**TÍTULO:** {ia_suggestions_dict.get('title_propuesto', 'N/A')}
+**META DESC.:** {ia_suggestions_dict.get('meta_description_propuesta', 'N/A')}
+"""
         else:
-            ia_suggestions = "Contenido muy corto para análisis de IA."
+            formatted_suggestions = "Contenido muy corto para análisis de IA."
 
         return {
             "URL": url,
@@ -130,7 +186,7 @@ def analyze_page(url):
             "Meta Description": meta_desc_content,
             "Word Count": word_count,
             "Audit Flags": ", ".join(audit_notes) if audit_notes else "✅ Óptimo",
-            "IA Suggestions": ia_suggestions, # Nuevo campo con las sugerencias
+            "IA Suggestions": formatted_suggestions, # Usamos la cadena formateada
             "Full Text (Fragment)": text_content[:500] + "..." # Fragmento del texto completo
         }
     except Exception as e:
@@ -206,7 +262,7 @@ if st.button("🚀 Iniciar Auditoría (Crawler + IA)"):
         cols = ["URL", "Status", "Audit Flags", "IA Suggestions", "Title", "H1", "Meta Description", "Word Count", "Full Text (Fragment)"]
         df_results = df_results[cols]
 
-        # Mostrar tabla interactiva (ajustamos el ancho de las columnas)
+        # Mostrar tabla interactiva. Streamlit soporta saltos de línea y negritas en las celdas del DataFrame
         st.dataframe(df_results, use_container_width=True, column_config={
             "IA Suggestions": st.column_config.Column(width="large"),
             "Title": st.column_config.Column(width="medium"),
