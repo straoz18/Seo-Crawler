@@ -1,5 +1,8 @@
 # --- COMIENZO DEL CÓDIGO A AÑADIR/MODIFICAR ---
-
+import streamlit as st # <--- ¡ESTA DEBE SER LA PRIMERA LÍNEA!
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
 from google import genai
 from google.genai import types
 
