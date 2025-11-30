@@ -22,12 +22,15 @@ st.set_page_config(page_title="SEO & pSEO AI Tool", layout="wide")
 ADMIN_USER = "admin"
 ADMIN_PASS = "Creativos.2025//"
 
+# El nombre completo de la primera página (debe coincidir exactamente con la opción del menú)
+DEFAULT_PAGE = "📊 Crawler & Auditoría SEO"
+
 # Inicializar el estado de autenticación
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 if 'current_page' not in st.session_state:
-    # Usaremos el nombre completo de la página para la navegación lateral
-    st.session_state['current_page'] = "Crawler & Auditoría SEO"
+    # CORRECCIÓN: Inicializar con el nombre completo y el emoji
+    st.session_state['current_page'] = DEFAULT_PAGE
 
 
 # --- ESTILOS CSS GENERALES ---
@@ -784,10 +787,14 @@ with st.sidebar:
     # MENÚ DE NAVEGACIÓN LATERAL
     st.markdown("### Navegación")
     
+    # Lista de todas las opciones del menú
+    MENU_OPTIONS = [DEFAULT_PAGE, "💡 pSEO - Programmatic SEO"]
+    
     page_selection = st.radio(
         "Elige una herramienta",
-        ["📊 Crawler & Auditoría SEO", "💡 pSEO - Programmatic SEO"],
-        index=["📊 Crawler & Auditoría SEO", "💡 pSEO - Programmatic SEO"].index(st.session_state['current_page']),
+        MENU_OPTIONS,
+        # Usar la lista de opciones para encontrar el índice de la página actual
+        index=MENU_OPTIONS.index(st.session_state['current_page']),
         key="main_menu_radio"
     )
     
@@ -803,7 +810,7 @@ with st.sidebar:
 # CONTENIDO PRINCIPAL BASADO EN LA SELECCIÓN DEL MENÚ
 st.title("🤖 SEO AI Suite - Herramientas Programáticas y de Auditoría por Israel Ríos")
 
-if st.session_state['current_page'] == "📊 Crawler & Auditoría SEO":
+if st.session_state['current_page'] == DEFAULT_PAGE:
     render_seo_audit_page()
 
 elif st.session_state['current_page'] == "💡 pSEO - Programmatic SEO":
