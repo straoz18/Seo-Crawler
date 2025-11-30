@@ -777,12 +777,13 @@ def render_pseo_tool_page():
 # TÍTULO Y LOGO EN LA BARRA LATERAL
 with st.sidebar:
     # Bloque HTML para el encabezado y el mensaje de bienvenida
-    # CORREGIDO: Se asegura que el código HTML se inyecte correctamente con st.markdown
+    # CORREGIDO: Se simplificó el HTML y se usó un único st.markdown para asegurar la renderización.
     st.markdown(f"""
         <div style='text-align: center; padding-top: 10px; padding-bottom: 20px; border-bottom: 1px solid #E5E7EB;'>
             {get_svg_logo("#1E3A8A")}
-            <p class='sidebar-header'>SEO AI Suite</p>
-            <p style='font-size: 0.8em; color: #777;'>Bienvenido, {ADMIN_USER}</p>
+            <span class='sidebar-header'>SEO AI Suite</span>
+            <br>
+            <span style='font-size: 0.8em; color: #777;'>Bienvenido, {ADMIN_USER}</span>
         </div>
     """, unsafe_allow_html=True)
     
