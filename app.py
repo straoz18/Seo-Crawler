@@ -776,6 +776,8 @@ def render_pseo_tool_page():
 
 # TÍTULO Y LOGO EN LA BARRA LATERAL
 with st.sidebar:
+    # Bloque HTML para el encabezado y el mensaje de bienvenida
+    # CORREGIDO: Se asegura que el código HTML se inyecte correctamente con st.markdown
     st.markdown(f"""
         <div style='text-align: center; padding-top: 10px; padding-bottom: 20px; border-bottom: 1px solid #E5E7EB;'>
             {get_svg_logo("#1E3A8A")}
