@@ -6,6 +6,7 @@ from urllib.parse import urlparse, urljoin
 import time
 import json 
 import base64
+import re # Necesario para el nuevo método de parsing de Markdown
 
 # Importaciones de la API de Google Gemini (Asegúrate de que 'google-genai' esté en requirements.txt)
 from google import genai
@@ -195,20 +196,30 @@ def call_gemini_with_json(prompt, schema, use_search=False):
         return None
     
     # Configuración de herramientas (Google Search)
+    # Nota: Si use_search es True, debemos evitar response_mime_type="application/json"
     tools = [{"google_search": {}}] if use_search else None
     
+    config_params = {}
+    if not use_search:
+        config_params['response_mime_type'] = "application/json"
+        config_params['response_schema'] = schema
+
     try:
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=schema,
+                **config_params,
                 tools=tools
             )
         )
-        # La respuesta de la API ya viene como una cadena JSON, la parseamos.
-        return json.loads(response.text.strip())
+        
+        if use_search:
+            # Si se usó Google Search, la respuesta es texto plano/markdown
+            return response.text.strip()
+        else:
+            # Si no se usó Google Search, se espera JSON
+            return json.loads(response.text.strip())
         
     except Exception as e:
         st.error(f"Error al llamar a Gemini. Verifica tu clave de API y el prompt: {e}")
@@ -294,46 +305,65 @@ def generate_content_template(topic):
 # --- NUEVA FUNCIÓN PARA ANÁLISIS DE NICHO Y COMPETENCIA (pSEO 3) ---
 
 def analyze_and_suggest_keywords(url):
-    """Analiza una URL, su nicho, competidores y sugiere keywords pSEO usando Google Search."""
-    schema = types.Schema(
-        type=types.Type.OBJECT,
-        properties={
-            "niche_summary": types.Schema(type=types.Type.STRING, description="Resumen conciso del nicho de mercado y propuesta de valor de la web analizada."),
-            "competitor_insights": types.Schema(type=types.Type.STRING, description="Breve análisis de las estrategias de palabras clave de los principales competidores encontrados."),
-            "keywords_suggestions": types.Schema(
-                type=types.Type.ARRAY,
-                items=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties={
-                        "keyword": types.Schema(type=types.Type.STRING, description="Keyword de cola larga o pSEO sugerida."),
-                        "search_intent": types.Schema(type=types.Type.STRING, description="Intención de búsqueda asociada (Ej: Informativa, Transaccional, Comercial)."),
-                        "difficulty_estimate": types.Schema(type=types.Type.STRING, description="Estimación de dificultad de posicionamiento (Ej: Baja, Media, Alta).")
-                    }
-                ),
-                description="Lista de 10 keywords pSEO sugeridas."
-            )
-        }
-    )
+    """Analiza una URL, su nicho, competidores y sugiere keywords pSEO usando Google Search.
     
-    # El prompt usará la herramienta de búsqueda para obtener contexto sobre la URL, su industria y sus competidores.
+    IMPORTANTE: Ahora devuelve un string Markdown con la tabla para evitar el error de
+    JSON + Grounding. El parsing de la tabla se hace en el front-end.
+    """
+    
+    # Notamos que aquí no pasamos un schema porque estamos pidiendo grounding (use_search=True)
     prompt = f"""
     Eres un analista de SEO Programático especializado en el análisis de nichos de mercado.
     Tu tarea es analizar la siguiente URL: {url}.
 
     Pasos a seguir (usando la herramienta de Google Search):
-    1. Determinar el nicho de mercado y la propuesta de valor de la URL.
+    1. Determinar el nicho de mercado, la propuesta de valor y el rubro de la URL.
     2. Identificar al menos 3 competidores clave y analizar qué tipo de contenido están creando.
     3. En base al nicho y las debilidades/oportunidades encontradas en la competencia, generar 10 keywords de cola larga (long-tail) que sean perfectas para una estrategia de SEO Programático para la URL de entrada.
 
     Estructura de respuesta:
-    1. Proporciona un resumen del nicho.
-    2. Un resumen del análisis competitivo.
-    3. Una lista de 10 keywords pSEO sugeridas, incluyendo su intención de búsqueda y una estimación de dificultad.
-
-    DEBES responder estrictamente en formato JSON que se ajuste al esquema proporcionado.
+    1. **RESUMEN DE NICHO:** Proporciona un resumen conciso del nicho de mercado y propuesta de valor de la web analizada.
+    2. **INSIGHTS COMPETITIVOS:** Breve análisis de las estrategias de palabras clave de los principales competidores encontrados (menciona al menos 3).
+    3. **KEYWORDS DE OPORTUNIDAD:** Genera una tabla en formato Markdown con las 10 keywords pSEO sugeridas. La tabla debe tener exactamente 3 columnas: 'Keyword Sugerida', 'Intención de Búsqueda' (Informativa, Transaccional, etc.) y 'Estimación de Dificultad' (Baja, Media, Alta).
+    
+    Asegúrate de que la tabla Markdown empiece y termine con el formato de tabla estándar de Markdown.
     """
-    return call_gemini_with_json(prompt, schema, use_search=True)
+    
+    # Retorna un string (texto plano/markdown)
+    return call_gemini_with_json(prompt, schema=None, use_search=True)
 
+def parse_markdown_table(markdown_text):
+    """Extrae la tabla Markdown del texto y la convierte en DataFrame."""
+    
+    # 1. Encontrar el bloque de la tabla
+    # Busca el patrón de tabla Markdown (líneas separadas por |)
+    table_match = re.search(r'\|.*\|.*\n\|---.*\|\n((\|.*\|\n?)+)', markdown_text, re.DOTALL)
+    
+    if not table_match:
+        return None
+
+    table_block = table_match.group(0).strip()
+    
+    # 2. Procesar las filas
+    lines = table_block.split('\n')
+    
+    # La cabecera es la primera línea (índice 0)
+    header = [h.strip() for h in lines[0].strip('|').split('|')]
+    
+    # Los datos comienzan después de la línea separadora (índice 2 en adelante)
+    data_rows = []
+    for line in lines[2:]:
+        # Ignorar líneas vacías
+        if not line.strip():
+            continue
+        # Limpiar y dividir los valores
+        row_values = [v.strip() for v in line.strip('|').split('|')]
+        # Asegurarse de que tengamos el número correcto de columnas
+        if len(row_values) == len(header):
+            data_rows.append(row_values)
+
+    df = pd.DataFrame(data_rows, columns=header)
+    return df
 
 # --- FUNCIONES DEL CRAWLER ---
 
@@ -587,39 +617,50 @@ def render_pseo_tool_page():
                     st.error("Por favor, introduce una URL que empiece con http:// o https://")
                 else:
                     with st.spinner(f"Analizando la URL y la competencia de '{target_url}' usando Google Search..."):
-                        analysis_result = analyze_and_suggest_keywords(target_url)
+                        # Llamada que devuelve Markdown simple (Grounding permitido)
+                        analysis_markdown = analyze_and_suggest_keywords(target_url)
                         
-                        if analysis_result and analysis_result.get('keywords_suggestions'):
+                        if analysis_markdown:
+                            
+                            # 1. Mostrar texto introductorio y análisis.
                             st.success("¡Análisis Competitivo y Sugerencias de Keywords completado!")
-                            
-                            # 1. Resumen de Nicho
-                            st.subheader("1. Resumen de Nicho y Propuesta de Valor")
-                            st.markdown(analysis_result.get('niche_summary', 'N/A'))
-                            
-                            # 2. Insights del Competidor
-                            st.subheader("2. Insights Clave de la Competencia")
-                            st.markdown(analysis_result.get('competitor_insights', 'N/A'))
 
-                            # 3. Keywords Sugeridas
+                            # Usamos regex para extraer las secciones de texto antes de la tabla.
+                            # Extraemos el resumen de nicho
+                            niche_match = re.search(r'\*\*RESUMEN DE NICHO:\*\*(.*?)(?=\*\*INSIGHTS COMPETITIVOS:\*\*|\Z)', analysis_markdown, re.DOTALL)
+                            if niche_match:
+                                st.subheader("1. Resumen de Nicho y Propuesta de Valor")
+                                st.markdown(niche_match.group(1).strip())
+
+                            # Extraemos los insights competitivos
+                            insights_match = re.search(r'\*\*INSIGHTS COMPETITIVOS:\*\*(.*?)(?=\*\*KEYWORDS DE OPORTUNIDAD:\*\*|\Z)', analysis_markdown, re.DOTALL)
+                            if insights_match:
+                                st.subheader("2. Insights Clave de la Competencia")
+                                st.markdown(insights_match.group(1).strip())
+
+                            # 2. Keywords Sugeridas (Parseando la tabla)
                             st.subheader("3. 10 Keywords pSEO de Oportunidad")
                             
-                            df_keywords = pd.DataFrame(analysis_result['keywords_suggestions'])
-                            # Renombrar columnas para la visualización en español
-                            df_keywords.columns = ["Keyword Sugerida", "Intención de Búsqueda", "Estimación de Dificultad"]
+                            df_keywords = parse_markdown_table(analysis_markdown)
                             
-                            st.dataframe(df_keywords, use_container_width=True)
+                            if df_keywords is not None and not df_keywords.empty:
+                                st.dataframe(df_keywords, use_container_width=True)
 
-                            # Opción de descarga
-                            csv_keywords = df_keywords.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="💾 Descargar CSV de Keywords Competitivas",
-                                data=csv_keywords,
-                                file_name='pseo_keywords_competitivas.csv',
-                                mime='text/csv',
-                                use_container_width=True
-                            )
+                                # Opción de descarga
+                                csv_keywords = df_keywords.to_csv(index=False).encode('utf-8')
+                                st.download_button(
+                                    label="💾 Descargar CSV de Keywords Competitivas",
+                                    data=csv_keywords,
+                                    file_name='pseo_keywords_competitivas.csv',
+                                    mime='text/csv',
+                                    use_container_width=True
+                                )
+                            else:
+                                st.warning("La IA generó el análisis, pero no se pudo extraer la tabla de keywords. Aquí está la respuesta completa en bruto para revisión:")
+                                st.code(analysis_markdown, language="markdown")
+
                         else:
-                            st.warning("No se pudo completar el análisis o la IA devolvió una estructura incorrecta. Inténtalo con otra URL o verifica la clave de API.")
+                            st.warning("No se pudo completar el análisis. Inténtalo con otra URL o verifica la clave de API.")
             elif not client:
                 st.error("La API de Gemini no está configurada correctamente.")
             else:
@@ -646,7 +687,8 @@ if st.sidebar.button("Cerrar Sesión", key="logout_btn_main", use_container_widt
     st.rerun()
 
 # CONTENIDO PRINCIPAL CON TABS
-st.title("🤖 SEO AI Suite - Herramientas Programáticas y de Auditoría")
+# Título actualizado para incluir a Israel Ríos
+st.title("🤖 SEO AI Suite - Herramientas Programáticas y de Auditoría por Israel Ríos")
 
 # Usar st.tabs para la navegación superior (como solicitaste)
 tab_audit, tab_pseo = st.tabs(["📊 Crawler & Auditoría SEO", "💡 pSEO - Programmatic SEO"])
