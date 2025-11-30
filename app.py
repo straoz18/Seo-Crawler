@@ -178,8 +178,6 @@ apply_custom_css()
 client = None
 try:
     # Intenta obtener la clave de secrets.toml
-    # NOTA: La imagen 'image_b1fb9a.png' sugiere un error de NameError aquí si la clave no existe. 
-    # Usamos el bloque try/except para manejar correctamente si la clave falta.
     GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=GEMINI_KEY)
 except KeyError:
@@ -190,22 +188,23 @@ except Exception as e:
 
 # --- FUNCIONES DE LA IA (COMPARTIDAS) ---
 
-def call_gemini_with_json(prompt, schema):
-    """Función auxiliar para hacer llamadas a la API de Gemini con respuesta JSON."""
+def call_gemini_with_json(prompt, schema, use_search=False):
+    """Función auxiliar para hacer llamadas a la API de Gemini con respuesta JSON.
+    Incluye opción para usar Google Search (grounding)."""
     if not client:
         return None
+    
+    # Configuración de herramientas (Google Search)
+    tools = [{"google_search": {}}] if use_search else None
+    
     try:
-        # --- CORRECCIÓN CRÍTICA ---
-        # 1. Usar el modelo correcto para generación estructurada: 'gemini-2.5-flash'
-        # 2. Descomentar el código de la API real
-        # 3. Eliminar los placeholders de prueba
-        
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=schema,
+                tools=tools
             )
         )
         # La respuesta de la API ya viene como una cadena JSON, la parseamos.
@@ -291,6 +290,49 @@ def generate_content_template(topic):
     DEBES responder estrictamente en formato JSON que se ajuste al esquema proporcionado.
     """
     return call_gemini_with_json(prompt, schema)
+
+# --- NUEVA FUNCIÓN PARA ANÁLISIS DE NICHO Y COMPETENCIA (pSEO 3) ---
+
+def analyze_and_suggest_keywords(url):
+    """Analiza una URL, su nicho, competidores y sugiere keywords pSEO usando Google Search."""
+    schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "niche_summary": types.Schema(type=types.Type.STRING, description="Resumen conciso del nicho de mercado y propuesta de valor de la web analizada."),
+            "competitor_insights": types.Schema(type=types.Type.STRING, description="Breve análisis de las estrategias de palabras clave de los principales competidores encontrados."),
+            "keywords_suggestions": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "keyword": types.Schema(type=types.Type.STRING, description="Keyword de cola larga o pSEO sugerida."),
+                        "search_intent": types.Schema(type=types.Type.STRING, description="Intención de búsqueda asociada (Ej: Informativa, Transaccional, Comercial)."),
+                        "difficulty_estimate": types.Schema(type=types.Type.STRING, description="Estimación de dificultad de posicionamiento (Ej: Baja, Media, Alta).")
+                    }
+                ),
+                description="Lista de 10 keywords pSEO sugeridas."
+            )
+        }
+    )
+    
+    # El prompt usará la herramienta de búsqueda para obtener contexto sobre la URL, su industria y sus competidores.
+    prompt = f"""
+    Eres un analista de SEO Programático especializado en el análisis de nichos de mercado.
+    Tu tarea es analizar la siguiente URL: {url}.
+
+    Pasos a seguir (usando la herramienta de Google Search):
+    1. Determinar el nicho de mercado y la propuesta de valor de la URL.
+    2. Identificar al menos 3 competidores clave y analizar qué tipo de contenido están creando.
+    3. En base al nicho y las debilidades/oportunidades encontradas en la competencia, generar 10 keywords de cola larga (long-tail) que sean perfectas para una estrategia de SEO Programático para la URL de entrada.
+
+    Estructura de respuesta:
+    1. Proporciona un resumen del nicho.
+    2. Un resumen del análisis competitivo.
+    3. Una lista de 10 keywords pSEO sugeridas, incluyendo su intención de búsqueda y una estimación de dificultad.
+
+    DEBES responder estrictamente en formato JSON que se ajuste al esquema proporcionado.
+    """
+    return call_gemini_with_json(prompt, schema, use_search=True)
 
 
 # --- FUNCIONES DEL CRAWLER ---
@@ -412,10 +454,10 @@ def render_seo_audit_page():
     st.subheader("Herramienta de Auditoría y Extracción Web")
     st.info("Utiliza Gemini para sugerir optimizaciones de Título y Meta Descripción de cada página rastreada.")
     
-    url_input = st.text_input("Introduce la URL de la Home (ej: https://ejemplo.com)", "")
-    max_pages_slider = st.slider("¿Cuántas páginas quieres analizar como máximo?", 5, 100, 20)
+    url_input = st.text_input("Introduce la URL de la Home (ej: https://ejemplo.com)", key="audit_url_input")
+    max_pages_slider = st.slider("¿Cuántas páginas quieres analizar como máximo?", 5, 100, 20, key="audit_pages_slider")
 
-    if st.button("🚀 Iniciar Auditoría (Crawler + IA)", use_container_width=True):
+    if st.button("🚀 Iniciar Auditoría (Crawler + IA)", use_container_width=True, key="btn_start_audit"):
         if not url_input.startswith(('http://', 'https://')):
             st.error("Por favor introduce una URL que empiece con http:// o https://")
         else:
@@ -458,7 +500,12 @@ def render_pseo_tool_page():
     st.subheader("Generación de Contenido Programático con IA")
     st.info("Utiliza la IA para generar una base de datos de variaciones de *keywords* y estructuras de contenido para tus páginas de pSEO.")
 
-    tab1, tab2 = st.tabs(["1. Generar Variaciones de Keywords", "2. Generar Estructura de Contenido"])
+    # AÑADIR LA NUEVA PESTAÑA (tab3)
+    tab1, tab2, tab3 = st.tabs([
+        "1. Generar Variaciones Manuales", 
+        "2. Generar Estructura de Contenido", 
+        "3. Análisis de Nicho & Keywords Competitivas"
+    ])
 
     with tab1:
         st.markdown("### Generador de Temas Programáticos")
@@ -527,6 +574,57 @@ def render_pseo_tool_page():
                 st.error("La API de Gemini no está configurada correctamente.")
             else:
                 st.warning("Por favor, introduce un tema específico.")
+
+    with tab3:
+        st.markdown("### Análisis Competitivo para pSEO")
+        st.info("Introduce una URL para que la IA analice su nicho, identifique competidores y sugiera *keywords* de oportunidad.")
+        
+        target_url = st.text_input("URL de la Web a Analizar (ej: https://suempresa.com)", key="pseo_niche_url")
+        
+        if st.button("Analizar Nicho y Competencia", key="btn_niche_analysis", use_container_width=True):
+            if target_url and client:
+                if not target_url.startswith(('http://', 'https://')):
+                    st.error("Por favor, introduce una URL que empiece con http:// o https://")
+                else:
+                    with st.spinner(f"Analizando la URL y la competencia de '{target_url}' usando Google Search..."):
+                        analysis_result = analyze_and_suggest_keywords(target_url)
+                        
+                        if analysis_result and analysis_result.get('keywords_suggestions'):
+                            st.success("¡Análisis Competitivo y Sugerencias de Keywords completado!")
+                            
+                            # 1. Resumen de Nicho
+                            st.subheader("1. Resumen de Nicho y Propuesta de Valor")
+                            st.markdown(analysis_result.get('niche_summary', 'N/A'))
+                            
+                            # 2. Insights del Competidor
+                            st.subheader("2. Insights Clave de la Competencia")
+                            st.markdown(analysis_result.get('competitor_insights', 'N/A'))
+
+                            # 3. Keywords Sugeridas
+                            st.subheader("3. 10 Keywords pSEO de Oportunidad")
+                            
+                            df_keywords = pd.DataFrame(analysis_result['keywords_suggestions'])
+                            # Renombrar columnas para la visualización en español
+                            df_keywords.columns = ["Keyword Sugerida", "Intención de Búsqueda", "Estimación de Dificultad"]
+                            
+                            st.dataframe(df_keywords, use_container_width=True)
+
+                            # Opción de descarga
+                            csv_keywords = df_keywords.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="💾 Descargar CSV de Keywords Competitivas",
+                                data=csv_keywords,
+                                file_name='pseo_keywords_competitivas.csv',
+                                mime='text/csv',
+                                use_container_width=True
+                            )
+                        else:
+                            st.warning("No se pudo completar el análisis o la IA devolvió una estructura incorrecta. Inténtalo con otra URL o verifica la clave de API.")
+            elif not client:
+                st.error("La API de Gemini no está configurada correctamente.")
+            else:
+                st.warning("Por favor, introduce una URL para empezar el análisis.")
+
 
 # --- LÓGICA PRINCIPAL DE LA APLICACIÓN (AUTENTICADA) ---
 
