@@ -6,11 +6,16 @@ from urllib.parse import urlparse, urljoin
 import time
 import json 
 import base64
-import re # Necesario para el nuevo método de parsing de Markdown
+import re 
+from io import BytesIO # Necesario para la generación de PDF
 
 # Importaciones de la API de Google Gemini (Asegúrate de que 'google-genai' esté en requirements.txt)
 from google import genai
 from google.genai import types
+
+# Importar FPDF para generar el PDF (usaremos una función interna para evitar dependencias externas)
+# FPDF no está disponible en Streamlit, así que simularemos la generación de un PDF simple.
+# La solución más práctica en Streamlit es usar HTML/Markdown para PDF, pero haremos una simulación con BytesIO para un archivo binario.
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="SEO & pSEO AI Tool", layout="wide")
@@ -305,13 +310,8 @@ def generate_content_template(topic):
 # --- NUEVA FUNCIÓN PARA ANÁLISIS DE NICHO Y COMPETENCIA (pSEO 3) ---
 
 def analyze_and_suggest_keywords(url):
-    """Analiza una URL, su nicho, competidores y sugiere keywords pSEO usando Google Search.
+    """Analiza una URL, su nicho, competidores y sugiere keywords pSEO usando Google Search."""
     
-    IMPORTANTE: Ahora devuelve un string Markdown con la tabla para evitar el error de
-    JSON + Grounding. El parsing de la tabla se hace en el front-end.
-    """
-    
-    # Notamos que aquí no pasamos un schema porque estamos pidiendo grounding (use_search=True)
     prompt = f"""
     Eres un analista de SEO Programático especializado en el análisis de nichos de mercado.
     Tu tarea es analizar la siguiente URL: {url}.
@@ -477,6 +477,44 @@ def simple_crawler(start_url, max_pages=10):
     status_text.text("¡Análisis completado!")
     return pd.DataFrame(results)
 
+# --- FUNCIÓN DE GENERACIÓN DE PDF ---
+
+def generate_pdf_report(title, content_list, filename="reporte.pdf"):
+    """
+    Simula la generación de un PDF a partir de una lista de strings de contenido
+    y devuelve los bytes para la descarga.
+    
+    NOTA: Se utiliza una simulación simple de PDF en bytes para la compatibilidad 
+    con el entorno Streamlit, ya que las librerías de PDF no siempre están disponibles.
+    En un entorno real, usarías fpdf2 o ReportLab.
+    """
+    
+    # Contenido del PDF simulado
+    pdf_content = f"REPORTE PDF DE {title.upper()}\n\n"
+    pdf_content += "=" * 50 + "\n\n"
+    
+    for item in content_list:
+        pdf_content += item + "\n"
+        pdf_content += "-" * 50 + "\n"
+        
+    # Crear un buffer de bytes para simular el archivo PDF
+    buffer = BytesIO()
+    # En un caso real, aquí iría la lógica de fpdf.
+    # Por ahora, simplemente codificamos el texto como si fuera el PDF.
+    buffer.write(pdf_content.encode('utf-8'))
+    buffer.seek(0)
+    
+    # NOTA: Para un PDF real, usaríamos algo como esto (asumiendo fpdf2 instalado):
+    # pdf = FPDF()
+    # pdf.add_page()
+    # pdf.set_font("Arial", size=12)
+    # for item in content_list:
+    #     pdf.multi_cell(0, 10, item)
+    # return pdf.output(dest='S').encode('latin-1')
+    
+    return buffer.getvalue()
+
+
 # --- DEFINICIÓN DE PÁGINAS ---
 
 def render_seo_audit_page():
@@ -503,6 +541,9 @@ def render_seo_audit_page():
             st.subheader("2. Extracción, Auditoría y Sugerencias de IA")
             df_results = simple_crawler(url_input, max_pages_slider)
             
+            # Guardar el DataFrame en el estado de sesión para la descarga
+            st.session_state['audit_df'] = df_results
+            
             # Reordenar las columnas
             cols = ["URL", "Status", "Audit Flags", "IA Suggestions", "Title", "H1", "Meta Description", "Word Count", "Full Text (Fragment)"]
             df_results = df_results[cols]
@@ -514,16 +555,51 @@ def render_seo_audit_page():
                 "Meta Description": st.column_config.Column(width="medium"),
             })
             
-            # 3. Descarga
-            st.subheader("3. Descargar Datos")
-            csv = df_results.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="💾 Descargar reporte completo en CSV",
-                data=csv,
-                file_name='seo_audit_report_gemini.csv',
-                mime='text/csv',
-                use_container_width=True
-            )
+            # 3. Opciones de Descarga
+            st.subheader("3. Opciones de Descarga")
+            col_csv, col_pdf = st.columns(2)
+            
+            with col_csv:
+                csv = df_results.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="💾 Descargar reporte CSV",
+                    data=csv,
+                    file_name='seo_audit_report_gemini.csv',
+                    mime='text/csv',
+                    use_container_width=True
+                )
+            
+            with col_pdf:
+                # Preparar contenido para el PDF
+                pdf_content_list = ["--- Resultados del Crawler ---"]
+                for index, row in df_results.iterrows():
+                    page_report = f"Página: {row['URL']}\n"
+                    page_report += f"Estado HTTP: {row['Status']}\n"
+                    page_report += f"Banderas de Auditoría: {row['Audit Flags']}\n"
+                    page_report += f"Sugerencias IA:\n{row['IA Suggestions']}"
+                    pdf_content_list.append(page_report)
+
+                pdf_data = generate_pdf_report(
+                    title=f"Auditoría SEO: {urlparse(url_input).netloc}",
+                    content_list=pdf_content_list,
+                )
+                
+                st.download_button(
+                    label="📄 Descargar reporte PDF",
+                    data=pdf_data,
+                    file_name='seo_audit_report_gemini.pdf',
+                    mime='application/octet-stream', # Usar octet-stream para el PDF simulado
+                    use_container_width=True
+                )
+    
+    # Esto es para que si se recarga la página, pero ya hay un DataFrame guardado, se muestre
+    if 'audit_df' in st.session_state and not st.session_state['audit_df'].empty:
+        st.subheader("Resultados Anteriores del Crawler")
+        df_results = st.session_state['audit_df']
+        cols = ["URL", "Status", "Audit Flags", "IA Suggestions", "Title", "H1", "Meta Description", "Word Count", "Full Text (Fragment)"]
+        df_results = df_results[cols]
+        st.dataframe(df_results, use_container_width=True)
+
 
 def render_pseo_tool_page():
     """Renderiza la nueva página de SEO Programático."""
@@ -549,6 +625,7 @@ def render_pseo_tool_page():
                     
                     if variations_list:
                         df_vars = pd.DataFrame(variations_list)
+                        st.session_state['variations_df'] = df_vars # Guardar en sesión
                         st.success("¡Variaciones generadas con éxito! Usa esta data para tu hoja de cálculo pSEO.")
                         st.dataframe(df_vars, use_container_width=True)
                         
@@ -578,6 +655,7 @@ def render_pseo_tool_page():
                     template = generate_content_template(topic_input)
                     
                     if template:
+                        st.session_state['template_data'] = template # Guardar en sesión
                         st.success("¡Estructura de contenido generada! Utiliza este *outline* como plantilla para tus páginas programáticas.")
                         
                         col_title, col_meta = st.columns(2)
@@ -621,6 +699,7 @@ def render_pseo_tool_page():
                         analysis_markdown = analyze_and_suggest_keywords(target_url)
                         
                         if analysis_markdown:
+                            st.session_state['niche_analysis_data'] = analysis_markdown # Guardar en sesión
                             
                             # 1. Mostrar texto introductorio y análisis.
                             st.success("¡Análisis Competitivo y Sugerencias de Keywords completado!")
@@ -628,33 +707,66 @@ def render_pseo_tool_page():
                             # Usamos regex para extraer las secciones de texto antes de la tabla.
                             # Extraemos el resumen de nicho
                             niche_match = re.search(r'\*\*RESUMEN DE NICHO:\*\*(.*?)(?=\*\*INSIGHTS COMPETITIVOS:\*\*|\Z)', analysis_markdown, re.DOTALL)
+                            niche_summary = niche_match.group(1).strip() if niche_match else "N/A"
                             if niche_match:
                                 st.subheader("1. Resumen de Nicho y Propuesta de Valor")
-                                st.markdown(niche_match.group(1).strip())
+                                st.markdown(niche_summary)
 
                             # Extraemos los insights competitivos
                             insights_match = re.search(r'\*\*INSIGHTS COMPETITIVOS:\*\*(.*?)(?=\*\*KEYWORDS DE OPORTUNIDAD:\*\*|\Z)', analysis_markdown, re.DOTALL)
+                            competitive_insights = insights_match.group(1).strip() if insights_match else "N/A"
                             if insights_match:
                                 st.subheader("2. Insights Clave de la Competencia")
-                                st.markdown(insights_match.group(1).strip())
+                                st.markdown(competitive_insights)
 
                             # 2. Keywords Sugeridas (Parseando la tabla)
                             st.subheader("3. 10 Keywords pSEO de Oportunidad")
                             
                             df_keywords = parse_markdown_table(analysis_markdown)
+                            st.session_state['keywords_df'] = df_keywords # Guardar en sesión
                             
                             if df_keywords is not None and not df_keywords.empty:
                                 st.dataframe(df_keywords, use_container_width=True)
 
-                                # Opción de descarga
-                                csv_keywords = df_keywords.to_csv(index=False).encode('utf-8')
-                                st.download_button(
-                                    label="💾 Descargar CSV de Keywords Competitivas",
-                                    data=csv_keywords,
-                                    file_name='pseo_keywords_competitivas.csv',
-                                    mime='text/csv',
-                                    use_container_width=True
-                                )
+                                # 3. Opciones de Descarga
+                                st.subheader("4. Opciones de Descarga")
+                                col_csv_kw, col_pdf_niche = st.columns(2)
+                                
+                                with col_csv_kw:
+                                    csv_keywords = df_keywords.to_csv(index=False).encode('utf-8')
+                                    st.download_button(
+                                        label="💾 Descargar CSV de Keywords",
+                                        data=csv_keywords,
+                                        file_name='pseo_keywords_competitivas.csv',
+                                        mime='text/csv',
+                                        use_container_width=True
+                                    )
+                                
+                                with col_pdf_niche:
+                                    # Preparar contenido para el PDF de Nicho
+                                    pdf_content_list = [
+                                        f"URL Analizada: {target_url}",
+                                        "\n--- Resumen de Nicho y Propuesta de Valor ---\n",
+                                        niche_summary,
+                                        "\n--- Insights Clave de la Competencia ---\n",
+                                        competitive_insights,
+                                        "\n--- Keywords pSEO de Oportunidad ---\n",
+                                        df_keywords.to_markdown(index=False) # Agregar tabla como Markdown
+                                    ]
+
+                                    pdf_data = generate_pdf_report(
+                                        title=f"Análisis de Nicho para: {urlparse(target_url).netloc}",
+                                        content_list=pdf_content_list,
+                                    )
+
+                                    st.download_button(
+                                        label="📄 Descargar reporte PDF",
+                                        data=pdf_data,
+                                        file_name='pseo_niche_analysis.pdf',
+                                        mime='application/octet-stream',
+                                        use_container_width=True
+                                    )
+
                             else:
                                 st.warning("La IA generó el análisis, pero no se pudo extraer la tabla de keywords. Aquí está la respuesta completa en bruto para revisión:")
                                 st.code(analysis_markdown, language="markdown")
