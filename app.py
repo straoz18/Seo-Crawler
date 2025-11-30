@@ -26,7 +26,7 @@ if 'current_page' not in st.session_state:
     st.session_state['current_page'] = "Crawler & Auditoría" # Estado para la navegación superior
 
 
-# --- ESTILOS CSS GENERALES (CORREGIDOS) ---
+# --- ESTILOS CSS GENERALES ---
 def apply_custom_css():
     st.markdown("""
         <style>
@@ -37,7 +37,7 @@ def apply_custom_css():
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
 
-        /* CORRECCIÓN 1: Contenedor principal para centrar el login */
+        /* Contenedor principal para centrar el login */
         .centered-container {
             display: flex;
             justify-content: center;
@@ -47,7 +47,7 @@ def apply_custom_css():
             align-items: center; 
         }
 
-        /* CORRECCIÓN 1: Card de Login Estilizada (Forzar colores para Dark Mode) */
+        /* Card de Login Estilizada (Forzar colores para Dark Mode) */
         .login-card {
             padding: 30px 40px;
             border-radius: 12px;
@@ -59,7 +59,7 @@ def apply_custom_css():
             text-align: center;
         }
 
-        /* CORRECCIÓN 1: Forzar texto de la tarjeta y etiquetas oscuras */
+        /* Forzar texto de la tarjeta y etiquetas oscuras */
         .login-card h2, .login-card p {
             color: #333333 !important; 
         }
@@ -90,7 +90,7 @@ def apply_custom_css():
             justify-content: center; /* Centrar las pestañas */
         }
         
-        /* CORRECCIÓN 2: Pestaña Inactiva */
+        /* Pestaña Inactiva */
         .stTabs [data-baseweb="tab"] {
             height: 50px;
             white-space: nowrap;
@@ -141,8 +141,7 @@ def login_form():
     
     st.markdown('<div class="centered-container">', unsafe_allow_html=True)
     
-    # CORRECCIÓN: Usar st.markdown para inyectar solo el DIV y luego usar st.markdown simple 
-    # para el título y el párrafo dentro de la tarjeta, evitando que Streamlit lo interprete como código Python.
+    # Usamos un bloque st.markdown simple para el título y el párrafo dentro de la tarjeta
     st.markdown(f"""
         <div class="login-card">
             {get_svg_logo("#4CAF50")}
@@ -151,7 +150,6 @@ def login_form():
     """, unsafe_allow_html=True)
 
     with st.form("login_form", clear_on_submit=False):
-        # NOTA: Los inputs de Streamlit heredan el estilo de fondo del tema.
         username = st.text_input("Usuario", key="user_input")
         password = st.text_input("Clave", type="password", key="pass_input")
         submitted = st.form_submit_button("Acceder")
@@ -197,31 +195,24 @@ def call_gemini_with_json(prompt, schema):
     if not client:
         return None
     try:
-        # Aquí se realizaría la llamada real con el cliente.
-        # Por ahora, simulamos una respuesta exitosa si el cliente existe.
-        # En una aplicación real, descomentarías el código de la API.
+        # --- CORRECCIÓN CRÍTICA ---
+        # 1. Usar el modelo correcto para generación estructurada: 'gemini-2.5-flash'
+        # 2. Descomentar el código de la API real
+        # 3. Eliminar los placeholders de prueba
         
-        # response = client.models.generate_content(
-        #     model='gemini-2.5-flash',
-        #     contents=prompt,
-        #     config=types.GenerateContentConfig(
-        #         response_mime_type="application/json",
-        #         response_schema=schema,
-        #     )
-        # )
-        # return json.loads(response.text.strip())
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=schema,
+            )
+        )
+        # La respuesta de la API ya viene como una cadena JSON, la parseamos.
+        return json.loads(response.text.strip())
         
-        # Placeholder de prueba para desarrollo
-        if schema.type == types.Type.ARRAY:
-             return [{"variation": "Placeholder 1", "url_slug": "placeholder-1"}, {"variation": "Placeholder 2", "url_slug": "placeholder-2"}]
-        elif schema.type == types.Type.OBJECT and "title_propuesto" in schema.properties:
-            return {"title_propuesto": "Título SEO de Prueba", "meta_description_propuesta": "Meta descripción de prueba de IA."}
-        elif schema.type == types.Type.OBJECT and "outline" in schema.properties:
-            return {"title": "Título pSEO", "meta_description": "Meta pSEO", "outline": "## Introducción\n\n### H2 Subtítulo"}
-
-
     except Exception as e:
-        st.error(f"Error al llamar a Gemini: {e}")
+        st.error(f"Error al llamar a Gemini. Verifica tu clave de API y el prompt: {e}")
         return None
 
 # --- FUNCIONES DE IA ESPECÍFICAS DE CRAWLER ---
@@ -551,7 +542,7 @@ st.sidebar.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Lógica de cierre de sesión
-# CORRECCIÓN DE ERROR: Usamos el botón de Streamlit y forzamos el st.rerun()
+# Usamos el botón de Streamlit y forzamos el st.rerun()
 if st.sidebar.button("Cerrar Sesión", key="logout_btn_main", use_container_width=True): 
     st.session_state['authenticated'] = False
     st.rerun()
