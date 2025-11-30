@@ -50,7 +50,7 @@ def apply_custom_css():
         
         /* Título Principal */
         h1 { 
-            color: #1E3A8A; /* Azul Oscuro */
+            color: #1E3A8A; /* Azul Oscuro en Light Mode */
             border-bottom: 2px solid #E5E7EB; 
             padding-bottom: 5px;
             margin-bottom: 20px;
@@ -83,22 +83,50 @@ def apply_custom_css():
             border-radius: 8px;
         }
         
-        /* --- SIDEBAR Y NAVEGACIÓN --- */
+        /* --- SIDEBAR Y NAVEGACIÓN (SOPORTE DARK MODE) --- */
         /* Estilos generales de la sidebar */
         .st-emotion-cache-1ldf153 {
-            background-color: #F8FAFC; /* Fondo muy claro para la sidebar */
+            background-color: #F8FAFC; /* Fondo muy claro para la sidebar (Light Mode) */
         }
         
-        /* Título del logo en la sidebar */
-        .sidebar-header {
-            color: #1E3A8A; /* Azul Oscuro */
-            font-weight: 700;
+        /* --- CONFIGURACIÓN PARA DARK MODE --- */
+        @media (prefers-color-scheme: dark) {
+            /* Fondo de la Sidebar en Dark Mode */
+            .st-emotion-cache-1ldf153 {
+                background-color: #17181A; /* Fondo más oscuro */
+            }
+            /* Título principal H1 en Dark Mode */
+            h1 {
+                color: #FFFFFF; /* Texto blanco para H1 */
+                border-bottom: 2px solid #374151; /* Separador gris oscuro */
+            }
+            /* Título del logo en la sidebar (Dark Mode) */
+            .sidebar-header {
+                color: #FFFFFF !important; /* Texto blanco en Dark Mode */
+            }
+            /* SVG del logo en la sidebar (Dark Mode) */
+            .sidebar-logo-svg path {
+                stroke: #FFFFFF !important; /* SVG blanco en Dark Mode */
+            }
+            /* Etiquetas y texto del Login en Dark Mode */
+            .login-card h2, .login-card p, .login-card label p, .login-card span {
+                color: #FFFFFF !important; 
+            }
+            .login-card {
+                background: #1F2937 !important; /* Fondo de tarjeta más oscuro */
+                box-shadow: 0 8px 30px rgba(255, 255, 255, 0.1);
+            }
+            
         }
 
-        /* Contenedor de la barra de navegación */
-        .st-emotion-cache-170y540 > div > div:nth-child(2) > div {
-             /* El selector para el menu de radio de Streamlit es complejo */
-             /* Le daremos un estilo simple de botones grandes */
+        /* Título del logo en la sidebar (Light Mode) */
+        .sidebar-header {
+            color: #1E3A8A; /* Azul Oscuro en Light Mode */
+            font-weight: 700;
+        }
+        /* SVG del logo en la sidebar (Light Mode) */
+        .sidebar-logo-svg path {
+            stroke: #1E3A8A; /* Azul Oscuro en Light Mode */
         }
         
         /* --- LOGIN FORM STYLES (Centrado y Moderno) --- */
@@ -115,66 +143,78 @@ def apply_custom_css():
             border-radius: 12px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
             background: #ffffff !important; 
-            color: #333333 !important; 
             width: 100%;
             max-width: 400px; 
             text-align: center;
         }
         
-        /* Forzar texto de la tarjeta y etiquetas oscuras */
+        /* Forzar texto de la tarjeta y etiquetas oscuras en Light Mode */
         .login-card h2, .login-card p, .login-card label p {
             color: #1E3A8A !important; /* Azul Oscuro */
         }
         </style>
     """, unsafe_allow_html=True)
 
-# Función para el logo (SVG con el nuevo color)
-def get_svg_logo(color="#06B6D4"):
-    # Misma araña, nuevo color cian
+# Función para el logo (SVG con clase CSS para color dinámico)
+def get_svg_logo():
+    # El color del stroke será definido por la clase CSS 'sidebar-logo-svg' y el media query.
     svg = f"""
-    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-spider">
-        <path d="M10 9a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/>
-        <path d="M12 11v6"/>
-        <path d="M8 2v1c0 4.37-3.6 7.9-7.9 7.9"/>
-        <path d="M16 2v1c0 4.37 3.6 7.9 7.9 7.9"/>
-        <path d="M19.4 14.5c.34-1.11.59-2.29.5-3.5"/>
-        <path d="M4.6 14.5c-.34-1.11-.59-2.29-.5-3.5"/>
-        <path d="M8.5 22c.39-1.57 2.07-2.92 4-3 1.93-.08 3.61 1.33 4 3"/>
-    </svg>
+    <div class="sidebar-logo-svg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-spider">
+            <path d="M10 9a2 2 0 1 0 4 0 2 2 0 0 0-4 0"/>
+            <path d="M12 11v6"/>
+            <path d="M8 2v1c0 4.37-3.6 7.9-7.9 7.9"/>
+            <path d="M16 2v1c0 4.37 3.6 7.9 7.9 7.9"/>
+            <path d="M19.4 14.5c.34-1.11.59-2.29.5-3.5"/>
+            <path d="M4.6 14.5c-.34-1.11-.59-2.29-.5-3.5"/>
+            <path d="M8.5 22c.39-1.57 2.07-2.92 4-3 1.93-.08 3.61 1.33 4 3"/>
+        </svg>
+    </div>
     """
     return svg
 
 def login_form():
-    """Muestra el formulario de login centrado."""
+    """Muestra el formulario de login centrado, corregido para evitar el error de renderizado de span/div."""
     
     apply_custom_css()
     
-    st.markdown('<div class="centered-container">', unsafe_allow_html=True)
-    
-    # Usamos un bloque st.markdown simple para el título y el párrafo dentro de la tarjeta
-    st.markdown(f"""
-        <div class="login-card">
-            {get_svg_logo("#1E3A8A")}
-            <h2 style="color: #1E3A8A !important;">Acceso a Herramienta SEO</h2>
-            <p style="color: #666; margin-bottom: 20px;">Introduce tus credenciales.</p>
-    """, unsafe_allow_html=True)
+    # Nuevo enfoque para el login: Usar contenedores de Streamlit que encapsulen los divs HTML.
+    # Usaremos el contenedor centrado de Streamlit para forzar el CSS 'login-card'.
+    centered_container = st.container()
 
-    with st.form("login_form", clear_on_submit=False):
-        username = st.text_input("Usuario", key="user_input")
-        password = st.text_input("Clave", type="password", key="pass_input")
-        submitted = st.form_submit_button("Acceder")
+    with centered_container:
+        # Esto crea un div centrado gracias al CSS 'centered-container'
+        st.markdown('<div class="centered-container">', unsafe_allow_html=True)
         
-        if submitted:
-            if username == ADMIN_USER and password == ADMIN_PASS:
-                st.session_state['authenticated'] = True
-                st.success("Acceso concedido. Recargando aplicación...")
-                st.rerun() 
-            else:
-                st.error("Usuario o clave incorrecta.")
+        # 1. Creamos un slot donde Streamlit renderizará la "tarjeta"
+        with st.container():
+            # Inyectamos solo la clase de la tarjeta para que el contenido de Streamlit se vea afectado
+            st.markdown('<div class="login-card">', unsafe_allow_html=True)
+            
+            # 2. Inyectamos el logo y el título con st.markdown, pero dentro de la tarjeta
+            st.markdown(get_svg_logo(), unsafe_allow_html=True)
+            st.markdown("<h2>Acceso a Herramienta SEO</h2>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #666; margin-bottom: 20px;'>Introduce tus credenciales.</p>", unsafe_allow_html=True)
 
-    # Cierre del div de la tarjeta y del div contenedor centrado
-    st.markdown('</div></div>', unsafe_allow_html=True)
-    
+            # 3. Formulario nativo de Streamlit
+            with st.form("login_form", clear_on_submit=False):
+                username = st.text_input("Usuario", key="user_input")
+                password = st.text_input("Clave", type="password", key="pass_input")
+                submitted = st.form_submit_button("Acceder")
+                
+                if submitted:
+                    if username == ADMIN_USER and password == ADMIN_PASS:
+                        st.session_state['authenticated'] = True
+                        st.success("Acceso concedido. Recargando aplicación...")
+                        st.rerun() 
+                    else:
+                        st.error("Usuario o clave incorrecta.")
+
+            # Cierre del div de la tarjeta y del div contenedor centrado
+            st.markdown('</div>', unsafe_allow_html=True) # Cierra login-card
+        st.markdown('</div>', unsafe_allow_html=True) # Cierra centered-container
+
+
 # Bloquea la aplicación principal si no está autenticado
 if not st.session_state['authenticated']:
     login_form()
@@ -783,12 +823,13 @@ def main_app():
     
     # 2. Inyectar el SVG logo (HTML) en la primera columna
     with col_logo:
-        # Aquí inyectamos solo el SVG.
-        st.markdown(get_svg_logo(color="#1E3A8A"), unsafe_allow_html=True)
+        # Aquí inyectamos el SVG con la clase CSS para el modo oscuro
+        st.markdown(get_svg_logo(), unsafe_allow_html=True)
 
     # 3. Inyectar el Título (HTML con estilo CSS) en la segunda columna
     with col_title:
         # Usamos la clase CSS 'sidebar-header' y line-height para alineación vertical
+        # El color ahora se define en el CSS con @media (prefers-color-scheme: dark)
         st.markdown("""
             <span class="sidebar-header" style="font-size: 24px; line-height: 40px; margin-top: 0;">SEO AI Tool</span>
         """, unsafe_allow_html=True)
